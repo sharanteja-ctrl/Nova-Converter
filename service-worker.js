@@ -1,12 +1,18 @@
-const CACHE_NAME = "nova-converter-v2";
+const CACHE_NAME = "nova-converter-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css",
-  "/app.js",
+  "/styles.css?v=20260304-01",
+  "/app.js?v=20260304-01",
   "/manifest.webmanifest",
   "/assets/icon.svg"
 ];
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

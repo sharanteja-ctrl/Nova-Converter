@@ -9,7 +9,6 @@ const dropzone = document.getElementById("dropzone");
 const targetSizeInput = document.getElementById("targetSizeInput");
 const targetUnitSelect = document.getElementById("targetUnitSelect");
 const maxCompressionInput = document.getElementById("maxCompressionInput");
-const themeToggleBtn = document.getElementById("themeToggleBtn");
 const loadingWrap = document.getElementById("loadingWrap");
 const loadingBar = document.getElementById("loadingBar");
 const loadingLabel = document.getElementById("loadingLabel");
