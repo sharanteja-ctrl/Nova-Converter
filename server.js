@@ -125,13 +125,49 @@ async function rasterizePdfToJpegs(
     "-dQUIET",
     "-dBATCH",
     "-dNumRenderingThreads=4",
-    "-sColorConversionStrategy=Gray",
-    "-dProcessColorModel=/DeviceGray",
     `-r${dpi}`,
     `-dJPEGQ=${quality}`,
     `-sOutputFile=${outputPattern}`,
     inputPath,
   ];
+  await runCommand("gs", args, timeoutMs);
+}
+
+async function rasterizePdfToMonoTiffs(inputPath, outputPattern, dpi, timeoutMs = 180000) {
+  const args = [
+    "-sDEVICE=tiffg4",
+    "-dNOPAUSE",
+    "-dQUIET",
+    "-dBATCH",
+    "-dNumRenderingThreads=4",
+    `-r${dpi}`,
+    `-sOutputFile=${outputPattern}`,
+    inputPath,
+  ];
+  await runCommand("gs", args, timeoutMs);
+}
+
+async function rasterizePdfDirectToPdf(
+  inputPath,
+  outputPath,
+  dpi,
+  quality,
+  mode = "color",
+  timeoutMs = 180000
+) {
+  const device = mode === "mono" ? "pdfimage8" : "pdfimage24";
+  const args = [
+    `-sDEVICE=${device}`,
+    "-dNOPAUSE",
+    "-dQUIET",
+    "-dBATCH",
+    `-r${dpi}`,
+    `-sOutputFile=${outputPath}`,
+    inputPath,
+  ];
+  if (mode !== "mono") {
+    args.splice(5, 0, `-dJPEGQ=${quality}`);
+  }
   await runCommand("gs", args, timeoutMs);
 }
 
@@ -195,6 +231,11 @@ function getFastHardRasterProfiles(ultraMode, compressionRatio) {
   }
   if (compressionRatio <= 0.14) {
     profiles.push({ dpi: 24, quality: 10 });
+  }
+  if (compressionRatio <= 0.1) {
+    profiles.push({ dpi: 18, quality: 8 });
+    profiles.push({ dpi: 14, quality: 6 });
+    profiles.push({ dpi: 10, quality: 4 });
   }
 
   return profiles;
@@ -318,29 +359,16 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
       const rasterProfiles = getFastHardRasterProfiles(ultraMode, compressionRatio);
 
       for (let i = 0; i < rasterProfiles.length; i += 1) {
-        const rasterDir = path.join(tempRoot, `raster-${i}`);
-        await fs.mkdir(rasterDir, { recursive: true });
-
         try {
-          const pattern = path.join(rasterDir, "page-%04d.jpg");
-          await rasterizePdfToJpegs(
+          const outPath = path.join(tempRoot, `raster-compressed-${i}.pdf`);
+          await rasterizePdfDirectToPdf(
             inputPath,
-            pattern,
+            outPath,
             rasterProfiles[i].dpi,
             rasterProfiles[i].quality,
-            shouldPreferRasterFirst ? 160000 : 120000
+            "color",
+            shouldPreferRasterFirst ? 220000 : 160000
           );
-
-          const images = (await fs.readdir(rasterDir))
-            .filter((f) => f.toLowerCase().endsWith(".jpg"))
-            .sort()
-            .map((f) => path.join(rasterDir, f));
-          if (!images.length) {
-            continue;
-          }
-
-          const outPath = path.join(tempRoot, `raster-compressed-${i}.pdf`);
-          await buildPdfFromImages(images, outPath, shouldPreferRasterFirst ? 120000 : 90000);
           const stat = await fs.stat(outPath);
           const currentSize = stat.size;
 
@@ -383,6 +411,70 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
           }
           if (currentSize <= targetBytes) {
             firstUnderTargetPath = squeezedPath;
+            break;
+          }
+        } catch (error) {
+          lastStepError = error;
+        }
+      }
+    }
+
+    // Absolute last-pass clamp for hard/ultra requests: keep reducing until under target.
+    if (!firstUnderTargetPath && bestPath && effectiveHardRasterMode) {
+      const clampProfiles = [
+        { dpi: 12, quality: 5 },
+        { dpi: 9, quality: 4 },
+        { dpi: 7, quality: 3 },
+      ];
+      for (let i = 0; i < clampProfiles.length; i += 1) {
+        try {
+          const outPath = path.join(tempRoot, `clamp-compressed-${i}.pdf`);
+          await rasterizePdfDirectToPdf(
+            bestPath,
+            outPath,
+            clampProfiles[i].dpi,
+            clampProfiles[i].quality,
+            "color",
+            180000
+          );
+          const stat = await fs.stat(outPath);
+          const currentSize = stat.size;
+          if (currentSize < bestSize) {
+            bestSize = currentSize;
+            bestPath = outPath;
+          }
+          if (currentSize <= targetBytes) {
+            firstUnderTargetPath = outPath;
+            break;
+          }
+        } catch (error) {
+          lastStepError = error;
+        }
+      }
+    }
+
+    // Monochrome final fallback for scanned/text-heavy files.
+    if (!firstUnderTargetPath && bestPath && effectiveHardRasterMode) {
+      const monoDpis = [100, 80, 64, 50];
+      for (let i = 0; i < monoDpis.length; i += 1) {
+        try {
+          const outPath = path.join(tempRoot, `mono-compressed-${i}.pdf`);
+          await rasterizePdfDirectToPdf(
+            bestPath,
+            outPath,
+            monoDpis[i],
+            0,
+            "mono",
+            180000
+          );
+          const stat = await fs.stat(outPath);
+          const currentSize = stat.size;
+          if (currentSize < bestSize) {
+            bestSize = currentSize;
+            bestPath = outPath;
+          }
+          if (currentSize <= targetBytes) {
+            firstUnderTargetPath = outPath;
             break;
           }
         } catch (error) {
