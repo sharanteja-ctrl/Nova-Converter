@@ -17,6 +17,7 @@ const card = document.querySelector(".card");
 
 let selectedFiles = [];
 let activeCameraStream = null;
+let cameraCapturedFiles = [];
 
 const textExtensions = new Set([
   "txt",
@@ -128,6 +129,7 @@ async function openCamera() {
   if (activeCameraStream) {
     return;
   }
+  cameraCapturedFiles = [];
 
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment" },
@@ -166,7 +168,21 @@ async function captureFromCamera() {
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const file = new File([blob], `camera-${stamp}.jpg`, { type: "image/jpeg" });
-  setSelectedFiles([file]);
+  cameraCapturedFiles.push(file);
+  fileInfo.textContent = `Captured from camera: ${cameraCapturedFiles.length} photo(s)`;
+  setStatus(
+    `Captured ${cameraCapturedFiles.length} photo(s). Capture more or close camera to use them.`
+  );
+}
+
+function closeCameraSession() {
+  if (cameraCapturedFiles.length > 0) {
+    setSelectedFiles([...cameraCapturedFiles]);
+    setStatus(
+      `Ready to convert ${cameraCapturedFiles.length} captured photo(s) to one PDF.`
+    );
+  }
+  cameraCapturedFiles = [];
   stopCamera();
 }
 
@@ -544,15 +560,16 @@ dropzone.addEventListener("drop", (event) => {
 openCameraBtn.addEventListener("click", async () => {
   try {
     await openCamera();
-    setStatus("Camera is open. Capture a photo to convert it to PDF.");
+    setStatus(
+      "Camera is open. Capture multiple photos, then close camera to convert them."
+    );
   } catch (error) {
     setStatus(`Failed: ${error.message}`);
   }
 });
 
 closeCameraBtn.addEventListener("click", () => {
-  stopCamera();
-  setStatus("Camera closed.");
+  closeCameraSession();
 });
 
 captureBtn.addEventListener("click", async () => {
