@@ -1,6 +1,12 @@
 services:
   - type: web
     name: nova-converter
-    runtime: docker
+    env: node
+    rootDir: .
     plan: free
+    buildCommand: |
+      apt-get update && \
+      apt-get install -y ghostscript libreoffice libreoffice-writer libreoffice-calc libreoffice-impress && \
+      npm install
+    startCommand: npm start
     autoDeploy: true

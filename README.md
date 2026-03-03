@@ -32,9 +32,14 @@ cd doc-to-pdf-converter
 npm install
 ```
 
-### 2) Install LibreOffice (required for Office/PPT/Word/Excel conversion)
+### 2) Install Ghostscript + LibreOffice (required for compression and Office/PPT/Word/Excel conversion)
 
-Make sure `soffice` is available in your terminal PATH.
+```bash
+brew install ghostscript libreoffice      # macOS (Homebrew)
+sudo apt-get install -y ghostscript libreoffice libreoffice-writer libreoffice-calc libreoffice-impress   # Debian/Ubuntu
+```
+
+Make sure `gs` and `soffice` are available in your terminal PATH.
 
 ### 3) Start server
 
