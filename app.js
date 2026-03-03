@@ -307,18 +307,26 @@ function formatTargetSize(targetBytes) {
   return `${bytesToKb(targetBytes)} KB`;
 }
 
-function savePdf(blob, inputName) {
-  const outputName = `${inputName.replace(/\.[^/.]+$/, "") || "converted"}.pdf`;
+function getOutputPdfName(inputName) {
+  const base = inputName.replace(/\.[^/.]+$/, "") || "converted";
+  return `${base}.pdf`;
+}
+
+function saveOutputBlob(blob, downloadName, finalLabel) {
   const url = URL.createObjectURL(blob);
   downloadLink.href = url;
-  downloadLink.download = outputName;
+  downloadLink.download = downloadName;
   downloadLink.classList.remove("hidden");
   if (downloadTimer) {
     clearInterval(downloadTimer);
     downloadTimer = null;
   }
-  startDownloadCountdown(downloadLink, "Download PDF");
+  startDownloadCountdown(downloadLink, finalLabel);
   return blob.size;
+}
+
+function savePdf(blob, inputName) {
+  return saveOutputBlob(blob, getOutputPdfName(inputName), "Download PDF");
 }
 
 async function makePdfExactTargetSize(blob, targetBytes) {
@@ -570,6 +578,68 @@ async function compressPdfWithServer(file, targetBytes, ultraMode, hardRasterMod
   return response.blob();
 }
 
+async function convertSingleFileToPdfBlob(file, targetBytes, ultraMode, hardRasterMode) {
+  const ext = getExt(file.name);
+  const isImage = file.type.startsWith("image/");
+  const isOffice = isOfficeLike(ext);
+  const isPdf = ext === "pdf";
+
+  if (isPdf) {
+    return compressPdfWithServer(file, targetBytes, ultraMode, hardRasterMode);
+  }
+  if (isOffice) {
+    return convertWithServer(file);
+  }
+  if (isImage) {
+    const result = await convertImagesToPdf([file], targetBytes);
+    return result.doc.output("blob");
+  }
+  if (textExtensions.has(ext)) {
+    const doc = await convertTextLikeToPdf(file, ext);
+    return doc.output("blob");
+  }
+  return convertWithServer(file);
+}
+
+async function convertBatchFilesToZip(files, targetBytes, ultraMode, hardRasterMode) {
+  if (!window.JSZip) {
+    throw new Error("ZIP support missing. Reload the page and try again.");
+  }
+
+  const zip = new window.JSZip();
+  const total = files.length;
+  for (let i = 0; i < total; i += 1) {
+    const file = files[i];
+    setStatus(`Converting ${i + 1}/${total}: ${file.name}`);
+    setLoadingLabel(`Converting files (${i + 1}/${total})...`);
+
+    const pdfBlob = await convertSingleFileToPdfBlob(
+      file,
+      targetBytes,
+      ultraMode,
+      hardRasterMode
+    );
+    zip.file(getOutputPdfName(file.name), pdfBlob);
+
+    loadingProgress = 8 + ((i + 1) / total) * 76;
+    renderLoadingProgress();
+  }
+
+  setLoadingLabel("Packing converted files...");
+  const zipBlob = await zip.generateAsync(
+    {
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    },
+    (meta) => {
+      loadingProgress = 84 + meta.percent * 0.16;
+      renderLoadingProgress();
+    }
+  );
+  return zipBlob;
+}
+
 async function handleConvert() {
   if (!selectedFiles.length) {
     setStatus("Please select a file first.");
@@ -606,16 +676,31 @@ async function handleConvert() {
     let serverBlob = null;
     let metTarget = true;
 
-    if (!isSingle && !allImages) {
-      throw new Error(
-        "Multiple-file conversion is currently supported for images only. Upload one non-image file at a time."
-      );
-    }
-
     if (!isSingle && allImages) {
       const result = await convertImagesToPdf(selectedFiles, targetBytes);
       doc = result.doc;
       metTarget = result.metTarget;
+    } else if (!isSingle) {
+      const zipBlob = await convertBatchFilesToZip(
+        selectedFiles,
+        targetBytes,
+        ultraMode,
+        hardRasterMode
+      );
+      const actualBytes = saveOutputBlob(
+        zipBlob,
+        "converted-pdfs.zip",
+        "Download ZIP"
+      );
+      const targetText = targetBytes
+        ? ` Target: ~${formatTargetSize(targetBytes)} per file where applicable.`
+        : "";
+      setStatus(
+        `Done: Converted ${selectedFiles.length} files. ZIP size ${bytesToKb(actualBytes)} KB.${targetText}`
+      );
+      success = true;
+      triggerSuccessAnimation();
+      return;
     } else if (isPdf) {
       serverBlob = await compressPdfWithServer(
         primaryFile,
