@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nova Converter</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <video class="bg-video" autoplay muted loop playsinline>
+      <source src="assets/bg.mp4" type="video/mp4" />
+    </video>
+
+    <div class="container">
+      <h1>Nova Converter</h1>
+      <p class="subtitle">Fast • Secure • High Quality Compression</p>
+
+      <div class="card">
+        <label class="upload-box" id="dropzone" for="fileInput">
+          <input id="fileInput" type="file" multiple />
+          <p id="fileInfo">Drop files here or click to upload (you can select many photos)</p>
+        </label>
+
+        <div class="camera-block">
+          <button id="openCameraBtn" class="download" type="button">Open Camera</button>
+          <div id="cameraPanel" class="camera-panel hidden">
+            <video id="cameraPreview" autoplay playsinline muted></video>
+            <div class="camera-actions">
+              <button id="captureBtn" class="convert" type="button">Capture Photo</button>
+              <button id="closeCameraBtn" class="download" type="button">
+                Close Camera
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="size-section">
+          <label for="targetSizeInput">Target Size</label>
+          <div class="size-input">
+            <input id="targetSizeInput" type="number" value="1" min="1" />
+            <select id="targetUnitSelect" aria-label="Target size unit">
+              <option>MB</option>
+              <option selected>KB</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="convertBtn" class="convert" disabled>Convert to PDF</button>
+          <a id="downloadLink" class="download hidden" download>Download PDF</a>
+        </div>
+
+        <p id="status" class="status" aria-live="polite">Choose a document to start.</p>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,524 @@
+const { jsPDF } = window.jspdf;
+
+const fileInput = document.getElementById("fileInput");
+const convertBtn = document.getElementById("convertBtn");
+const statusEl = document.getElementById("status");
+const fileInfo = document.getElementById("fileInfo");
+const downloadLink = document.getElementById("downloadLink");
+const dropzone = document.getElementById("dropzone");
+const targetSizeInput = document.getElementById("targetSizeInput");
+const targetUnitSelect = document.getElementById("targetUnitSelect");
+const openCameraBtn = document.getElementById("openCameraBtn");
+const closeCameraBtn = document.getElementById("closeCameraBtn");
+const captureBtn = document.getElementById("captureBtn");
+const cameraPanel = document.getElementById("cameraPanel");
+const cameraPreview = document.getElementById("cameraPreview");
+const card = document.querySelector(".card");
+
+let selectedFiles = [];
+let activeCameraStream = null;
+
+const textExtensions = new Set([
+  "txt",
+  "md",
+  "csv",
+  "json",
+  "xml",
+  "html",
+  "css",
+  "js",
+  "ts",
+  "py",
+  "java",
+  "c",
+  "cpp",
+  "log",
+]);
+
+const officeExtensions = new Set([
+  "doc",
+  "docx",
+  "ppt",
+  "pptx",
+  "xls",
+  "xlsx",
+  "odt",
+  "odp",
+  "ods",
+  "rtf",
+  "pages",
+  "key",
+  "numbers",
+]);
+
+function setStatus(message) {
+  statusEl.textContent = message;
+}
+
+function getExt(filename) {
+  const idx = filename.lastIndexOf(".");
+  return idx === -1 ? "" : filename.slice(idx + 1).toLowerCase();
+}
+
+function resetDownloadLink() {
+  downloadLink.classList.add("hidden");
+  downloadLink.removeAttribute("href");
+}
+
+function stopCamera() {
+  if (activeCameraStream) {
+    activeCameraStream.getTracks().forEach((track) => track.stop());
+    activeCameraStream = null;
+  }
+  cameraPreview.srcObject = null;
+  cameraPanel.classList.add("hidden");
+}
+
+function setSelectedFiles(files) {
+  selectedFiles = files;
+  resetDownloadLink();
+  if (card) {
+    card.classList.remove("file-selected");
+  }
+  if (!files.length) {
+    fileInfo.textContent =
+      "Accepted: all common forms (.doc/.docx/.ppt/.pptx/.xls/.xlsx, text, images). You can select many photos.";
+    convertBtn.disabled = true;
+    setStatus("Choose a document to start.");
+    return;
+  }
+
+  if (files.length === 1) {
+    fileInfo.textContent = `Selected: ${files[0].name}`;
+  } else {
+    fileInfo.textContent = `Selected ${files.length} files`;
+  }
+  convertBtn.disabled = false;
+  if (card) {
+    // Restart selection animation each time a new file is chosen.
+    void card.offsetWidth;
+    card.classList.add("file-selected");
+  }
+  const forms = new Set(
+    files.map((file) => getInputForm(getExt(file.name), file.type))
+  );
+  const formLabel =
+    forms.size === 1 ? Array.from(forms)[0] : `Mixed (${Array.from(forms).join("/")})`;
+  setStatus(`Ready to convert. Detected form: ${formLabel}.`);
+}
+
+function setSelectedFile(file) {
+  setSelectedFiles(file ? [file] : []);
+}
+
+async function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function openCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("Camera is not supported in this browser.");
+  }
+
+  if (activeCameraStream) {
+    return;
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment" },
+    audio: false,
+  });
+  activeCameraStream = stream;
+  cameraPreview.srcObject = stream;
+  cameraPanel.classList.remove("hidden");
+}
+
+async function captureFromCamera() {
+  if (!activeCameraStream) {
+    throw new Error("Camera is not open.");
+  }
+
+  const videoWidth = cameraPreview.videoWidth;
+  const videoHeight = cameraPreview.videoHeight;
+  if (!videoWidth || !videoHeight) {
+    throw new Error("Camera not ready yet. Try again.");
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = videoWidth;
+  canvas.height = videoHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas is not supported in this browser.");
+  }
+
+  ctx.drawImage(cameraPreview, 0, 0, videoWidth, videoHeight);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  if (!blob) {
+    throw new Error("Could not capture photo.");
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const file = new File([blob], `camera-${stamp}.jpg`, { type: "image/jpeg" });
+  setSelectedFiles([file]);
+  stopCamera();
+}
+
+async function fileToText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+function getTargetBytes() {
+  const value = Number(targetSizeInput.value);
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  const unit = targetUnitSelect.value;
+  const multiplier = unit === "MB" ? 1024 * 1024 : 1024;
+  return Math.floor(value * multiplier);
+}
+
+function bytesToKb(bytes) {
+  return (bytes / 1024).toFixed(1);
+}
+
+function formatTargetSize(targetBytes) {
+  if (!targetBytes) {
+    return "";
+  }
+
+  if (targetBytes >= 1024 * 1024) {
+    return `${(targetBytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  return `${bytesToKb(targetBytes)} KB`;
+}
+
+function savePdf(blob, inputName) {
+  const outputName = `${inputName.replace(/\.[^/.]+$/, "") || "converted"}.pdf`;
+  const url = URL.createObjectURL(blob);
+  downloadLink.href = url;
+  downloadLink.download = outputName;
+  downloadLink.classList.remove("hidden");
+  return blob.size;
+}
+
+function writeTextToPdf(doc, text) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const lineHeight = 6;
+  const maxWidth = pageWidth - margin * 2;
+
+  doc.setFont("courier", "normal");
+  doc.setFontSize(11);
+
+  const lines = doc.splitTextToSize(text, maxWidth);
+  let y = margin;
+
+  lines.forEach((line) => {
+    if (y > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.text(line, margin, y);
+    y += lineHeight;
+  });
+}
+
+async function addImagePage(doc, dataUrl, pageIndex) {
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+
+  if (pageIndex > 0) {
+    doc.addPage();
+  }
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const scale = Math.min(pageWidth / img.width, pageHeight / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  const x = (pageWidth - w) / 2;
+  const y = (pageHeight - h) / 2;
+
+  doc.addImage(dataUrl, "JPEG", x, y, w, h);
+}
+
+async function buildImagesPdf(dataUrls) {
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+  for (let i = 0; i < dataUrls.length; i += 1) {
+    await addImagePage(doc, dataUrls[i], i);
+  }
+  return doc;
+}
+
+async function downscaleImageDataUrl(dataUrl, maxWidth, quality) {
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+
+  const ratio = Math.min(1, maxWidth / img.width);
+  const width = Math.max(1, Math.floor(img.width * ratio));
+  const height = Math.max(1, Math.floor(img.height * ratio));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas is not supported in this browser.");
+  }
+
+  // Fill white background before drawing to avoid black backgrounds on transparent images.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+async function convertImagesToPdf(files, targetBytes) {
+  const originalDataUrls = await Promise.all(files.map((file) => fileToDataUrl(file)));
+
+  if (!targetBytes) {
+    const doc = await buildImagesPdf(originalDataUrls);
+    return { doc, metTarget: true };
+  }
+
+  const qualitySteps = [0.9, 0.82, 0.74, 0.66, 0.56, 0.46, 0.36, 0.28];
+  const widthSteps = [2200, 1800, 1400, 1100, 900, 700];
+  let bestDoc = null;
+  let bestSize = Number.POSITIVE_INFINITY;
+
+  for (const maxWidth of widthSteps) {
+    for (const quality of qualitySteps) {
+      const compressedDataUrls = await Promise.all(
+        originalDataUrls.map((dataUrl) =>
+          downscaleImageDataUrl(dataUrl, maxWidth, quality)
+        )
+      );
+      const doc = await buildImagesPdf(compressedDataUrls);
+      const size = doc.output("arraybuffer").byteLength;
+
+      if (size < bestSize) {
+        bestSize = size;
+        bestDoc = doc;
+      }
+
+      if (size <= targetBytes) {
+        return { doc, metTarget: true };
+      }
+    }
+  }
+
+  return { doc: bestDoc, metTarget: false };
+}
+
+async function convertTextLikeToPdf(file, ext) {
+  const content = await fileToText(file);
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+
+  if (ext === "md") {
+    const html = marked.parse(content);
+    const textOnly = new DOMParser().parseFromString(html, "text/html").body
+      .textContent;
+    writeTextToPdf(doc, textOnly || "");
+  } else {
+    writeTextToPdf(doc, content);
+  }
+
+  return doc;
+}
+
+function isOfficeLike(fileExt) {
+  return officeExtensions.has(fileExt);
+}
+
+function getInputForm(ext, mimeType) {
+  if (mimeType.startsWith("image/")) {
+    return "Image";
+  }
+  if (isOfficeLike(ext)) {
+    return "Office";
+  }
+  if (textExtensions.has(ext)) {
+    return "Text";
+  }
+  return "Other";
+}
+
+async function convertWithServer(file) {
+  if (!window.location.protocol.startsWith("http")) {
+    throw new Error(
+      "For Office/all-form conversion, run this project with the Node server (npm start)."
+    );
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/convert", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = "Server conversion failed.";
+    try {
+      const data = await response.json();
+      message = data.error || message;
+    } catch {
+      // Ignore parse errors and use fallback message.
+    }
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
+
+async function handleConvert() {
+  if (!selectedFiles.length) {
+    setStatus("Please select a file first.");
+    return;
+  }
+
+  convertBtn.disabled = true;
+  setStatus("Converting...");
+
+  try {
+    const primaryFile = selectedFiles[0];
+    const ext = getExt(primaryFile.name);
+    const isSingle = selectedFiles.length === 1;
+    const allImages = selectedFiles.every((file) => file.type.startsWith("image/"));
+    const isImage = isSingle && primaryFile.type.startsWith("image/");
+    const isOffice = isSingle && isOfficeLike(ext);
+    const targetBytes = getTargetBytes();
+
+    let doc = null;
+    let serverBlob = null;
+    let metTarget = true;
+
+    if (!isSingle && !allImages) {
+      throw new Error(
+        "Multiple-file conversion is currently supported for images only. Upload one non-image file at a time."
+      );
+    }
+
+    if (!isSingle && allImages) {
+      const result = await convertImagesToPdf(selectedFiles, targetBytes);
+      doc = result.doc;
+      metTarget = result.metTarget;
+    } else if (isOffice) {
+      serverBlob = await convertWithServer(primaryFile);
+    } else if (isImage) {
+      const result = await convertImagesToPdf([primaryFile], targetBytes);
+      doc = result.doc;
+      metTarget = result.metTarget;
+    } else if (textExtensions.has(ext)) {
+      doc = await convertTextLikeToPdf(primaryFile, ext);
+    } else if (ext === "pdf") {
+      throw new Error("This file is already a PDF.");
+    } else {
+      // Try server conversion for any unknown extension so users can use more forms.
+      serverBlob = await convertWithServer(primaryFile);
+    }
+
+    const blob = serverBlob || doc.output("blob");
+    const downloadName = selectedFiles.length > 1 ? "images-batch.pdf" : primaryFile.name;
+    const actualBytes = savePdf(blob, downloadName);
+    const targetText = targetBytes
+      ? ` Target: ~${formatTargetSize(targetBytes)}.`
+      : "";
+
+    if (serverBlob && targetBytes) {
+      setStatus(
+        `Converted: ${bytesToKb(actualBytes)} KB.${targetText} Server conversion used for this file form.`
+      );
+    } else if (targetBytes && (isImage || allImages) && !metTarget) {
+      setStatus(
+        `Converted: ${bytesToKb(actualBytes)} KB.${targetText} Could not hit target exactly; used strongest compression.`
+      );
+    } else if (targetBytes && !(isImage || allImages)) {
+      setStatus(
+        `Converted: ${bytesToKb(actualBytes)} KB.${targetText} Exact targeting works best for image files.`
+      );
+    } else {
+      setStatus(
+        `Converted: ${bytesToKb(actualBytes)} KB.${targetText} Click \"Download PDF\".`
+      );
+    }
+  } catch (error) {
+    setStatus(`Failed: ${error.message}`);
+  } finally {
+    convertBtn.disabled = false;
+  }
+}
+
+fileInput.addEventListener("change", (event) => {
+  const files = Array.from(event.target.files || []);
+  setSelectedFiles(files);
+});
+
+convertBtn.addEventListener("click", handleConvert);
+
+["dragenter", "dragover"].forEach((eventName) => {
+  dropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    dropzone.classList.add("dragover");
+  });
+});
+
+["dragleave", "drop"].forEach((eventName) => {
+  dropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    dropzone.classList.remove("dragover");
+  });
+});
+
+dropzone.addEventListener("drop", (event) => {
+  const files = Array.from(event.dataTransfer?.files || []);
+  fileInput.files = event.dataTransfer.files;
+  setSelectedFiles(files);
+});
+
+openCameraBtn.addEventListener("click", async () => {
+  try {
+    await openCamera();
+    setStatus("Camera is open. Capture a photo to convert it to PDF.");
+  } catch (error) {
+    setStatus(`Failed: ${error.message}`);
+  }
+});
+
+closeCameraBtn.addEventListener("click", () => {
+  stopCamera();
+  setStatus("Camera closed.");
+});
+
+captureBtn.addEventListener("click", async () => {
+  try {
+    await captureFromCamera();
+  } catch (error) {
+    setStatus(`Failed: ${error.message}`);
+  }
+});
+
+window.addEventListener("beforeunload", stopCamera);
