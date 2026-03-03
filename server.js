@@ -405,7 +405,15 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename=\"${outputName}\"`);
     return res.send(data);
   } catch (error) {
-    return res.status(500).json({ error: error.message || "PDF compression failed." });
+    const fallbackName = `${path.parse(originalName).name}-original.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("X-Compression-Fallback", "1");
+    res.setHeader(
+      "X-Compression-Reason",
+      String(error.message || "compression-failed").replace(/[\r\n]/g, " ").slice(0, 180)
+    );
+    res.setHeader("Content-Disposition", `attachment; filename=\"${fallbackName}\"`);
+    return res.send(req.file.buffer);
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => {});
   }
