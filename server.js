@@ -90,7 +90,7 @@ async function compressPdfWithGhostscript(inputPath, outputPath, profile) {
   ];
 
   try {
-    await runCommand("gs", args, 120000);
+    await runCommand("gs", args, 75000);
   } catch (error) {
     if (error.code === "ENOENT") {
       throw new Error(
@@ -112,7 +112,7 @@ async function rasterizePdfToJpegs(inputPath, outputPattern, dpi, quality) {
     `-sOutputFile=${outputPattern}`,
     inputPath,
   ];
-  await runCommand("gs", args, 180000);
+  await runCommand("gs", args, 90000);
 }
 
 async function buildPdfFromImages(imagePaths, outputPath) {
@@ -124,7 +124,36 @@ async function buildPdfFromImages(imagePaths, outputPath) {
     `-sOutputFile=${outputPath}`,
     ...imagePaths,
   ];
-  await runCommand("gs", args, 120000);
+  await runCommand("gs", args, 75000);
+}
+
+function getFastCompressionProfiles(compressionRatio, ultraMode) {
+  // Keep default requests fast: 1-3 passes max.
+  const quickHigh = { pdfSettings: "ebook", resolution: 150, monoResolution: 240 };
+  const quickMid = { pdfSettings: "screen", resolution: 120, monoResolution: 180 };
+  const quickLow = { pdfSettings: "screen", resolution: 96, monoResolution: 144 };
+  const deepLow = { pdfSettings: "screen", resolution: 72, monoResolution: 120 };
+
+  if (ultraMode) {
+    return [
+      quickMid,
+      quickLow,
+      deepLow,
+      { pdfSettings: "screen", resolution: 60, monoResolution: 100 },
+      { pdfSettings: "screen", resolution: 48, monoResolution: 72 },
+    ];
+  }
+
+  if (compressionRatio >= 0.85) {
+    return [quickHigh];
+  }
+  if (compressionRatio >= 0.7) {
+    return [quickHigh, quickMid];
+  }
+  if (compressionRatio >= 0.55) {
+    return [quickMid, quickLow];
+  }
+  return [quickLow, deepLow];
 }
 
 app.post("/api/convert", upload.single("file"), async (req, res) => {
@@ -206,24 +235,7 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     }
 
     const compressionRatio = targetBytes / Math.max(1, originalSize);
-    const profiles = [
-      { pdfSettings: "printer", resolution: 180, monoResolution: 300 },
-      { pdfSettings: "ebook", resolution: 150, monoResolution: 240 },
-      { pdfSettings: "screen", resolution: 120, monoResolution: 180 },
-    ];
-    if (compressionRatio < 0.75 || ultraMode) {
-      profiles.push(
-        { pdfSettings: "screen", resolution: 96, monoResolution: 144 },
-        { pdfSettings: "screen", resolution: 72, monoResolution: 120 }
-      );
-    }
-    if (ultraMode) {
-      profiles.push(
-        { pdfSettings: "screen", resolution: 60, monoResolution: 100 },
-        { pdfSettings: "screen", resolution: 48, monoResolution: 72 },
-        { pdfSettings: "screen", resolution: 36, monoResolution: 60 }
-      );
-    }
+    const profiles = getFastCompressionProfiles(compressionRatio, ultraMode);
 
     let bestPath = null;
     let bestSize = Number.POSITIVE_INFINITY;
@@ -247,11 +259,12 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     }
 
     if (!firstUnderTargetPath && hardRasterMode) {
-      const rasterProfiles = [
-        { dpi: 72, quality: 32 },
-        { dpi: 60, quality: 28 },
-        { dpi: 48, quality: 24 },
-      ];
+      const rasterProfiles = ultraMode
+        ? [
+            { dpi: 60, quality: 28 },
+            { dpi: 48, quality: 24 },
+          ]
+        : [{ dpi: 60, quality: 28 }];
 
       for (let i = 0; i < rasterProfiles.length; i += 1) {
         const rasterDir = path.join(tempRoot, `raster-${i}`);
