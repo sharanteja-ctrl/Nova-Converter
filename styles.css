@@ -117,14 +117,88 @@ body.light-mode::after {
 }
 
 .theme-toggle {
-  flex: 0 0 auto;
-  min-height: auto;
-  border: 1px solid var(--soft-border);
+  position: relative;
+  width: 90px;
+  height: 46px;
+  border: none;
   border-radius: 999px;
-  padding: 8px 14px;
-  background: var(--muted-bg);
-  color: var(--text);
-  font-weight: 600;
+  padding: 0;
+  background: linear-gradient(135deg, #1b1b1b, #2b2b2b);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.2),
+    0 12px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.theme-toggle .thumb {
+  position: absolute;
+  inset: 3px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #ffe3a1, #ffc107);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.45),
+    0 8px 16px rgba(0, 0, 0, 0.28);
+  display: grid;
+  place-items: center;
+  color: #7a4b00;
+  font-size: 18px;
+  transform: translateX(0);
+  transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.theme-toggle .sun-icon,
+.theme-toggle .moon-icon {
+  line-height: 1;
+}
+
+.theme-toggle .moon-icon {
+  display: none;
+}
+
+.theme-toggle.sun {
+  background: linear-gradient(135deg, #fff7c2, #ffd54f);
+  box-shadow:
+    inset 0 1px 3px rgba(255, 255, 255, 0.6),
+    0 12px 24px rgba(255, 214, 79, 0.35);
+}
+
+.theme-toggle.sun .thumb {
+  background: radial-gradient(circle at 30% 30%, #fff7d6, #ffcd38);
+  color: #7a4b00;
+  transform: translateX(calc(100% - 2px));
+}
+
+.theme-toggle.sun .sun-icon {
+  display: inline;
+}
+
+.theme-toggle.sun .moon-icon {
+  display: none;
+}
+
+.theme-toggle.moon {
+  background: linear-gradient(135deg, #0c1f3f, #234a92);
+  box-shadow:
+    inset 0 1px 3px rgba(255, 255, 255, 0.25),
+    0 12px 24px rgba(35, 74, 146, 0.45);
+}
+
+.theme-toggle.moon .thumb {
+  background: radial-gradient(circle at 65% 30%, #2f7bff, #0d3b82);
+  color: #e9f3ff;
+  transform: translateX(0);
+}
+
+.theme-toggle.moon .sun-icon {
+  display: none;
+}
+
+.theme-toggle.moon .moon-icon {
+  display: inline;
 }
 
 .hero {

@@ -822,5 +822,13 @@ window.addEventListener("beforeunload", stopCamera);
 themeToggleBtn.addEventListener("click", () => {
   document.body.classList.toggle("light-mode");
   const isLight = document.body.classList.contains("light-mode");
-  themeToggleBtn.textContent = isLight ? "Dark Mode" : "Light Mode";
+  if (isLight) {
+    themeToggleBtn.classList.remove("moon");
+    themeToggleBtn.classList.add("sun");
+    themeToggleBtn.setAttribute("aria-label", "Switch to dark mode");
+  } else {
+    themeToggleBtn.classList.remove("sun");
+    themeToggleBtn.classList.add("moon");
+    themeToggleBtn.setAttribute("aria-label", "Switch to light mode");
+  }
 });
