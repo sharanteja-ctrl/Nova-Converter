@@ -90,6 +90,32 @@ async function compressPdfWithGhostscript(inputPath, outputPath, profile) {
   }
 }
 
+async function rasterizePdfToJpegs(inputPath, outputPattern, dpi, quality) {
+  const args = [
+    "-sDEVICE=jpeg",
+    "-dNOPAUSE",
+    "-dQUIET",
+    "-dBATCH",
+    `-r${dpi}`,
+    `-dJPEGQ=${quality}`,
+    `-sOutputFile=${outputPattern}`,
+    inputPath,
+  ];
+  await runCommand("gs", args);
+}
+
+async function buildPdfFromImages(imagePaths, outputPath) {
+  const args = [
+    "-sDEVICE=pdfwrite",
+    "-dNOPAUSE",
+    "-dQUIET",
+    "-dBATCH",
+    `-sOutputFile=${outputPath}`,
+    ...imagePaths,
+  ];
+  await runCommand("gs", args);
+}
+
 app.post("/api/convert", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded." });
@@ -151,6 +177,7 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     return res.status(400).json({ error: "Valid targetBytes is required." });
   }
   const ultraMode = String(req.body.ultraMode || "0") === "1";
+  const hardRasterMode = String(req.body.hardRasterMode || "0") === "1";
 
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pdf-compress-"));
   const inputPath = path.join(tempRoot, originalName);
@@ -200,6 +227,52 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
       if (currentSize <= targetBytes) {
         firstUnderTargetPath = outPath;
         break;
+      }
+    }
+
+    if (!firstUnderTargetPath && hardRasterMode) {
+      const rasterProfiles = [
+        { dpi: 96, quality: 45 },
+        { dpi: 84, quality: 38 },
+        { dpi: 72, quality: 32 },
+        { dpi: 60, quality: 28 },
+        { dpi: 48, quality: 24 },
+      ];
+
+      for (let i = 0; i < rasterProfiles.length; i += 1) {
+        const rasterDir = path.join(tempRoot, `raster-${i}`);
+        await fs.mkdir(rasterDir, { recursive: true });
+
+        const pattern = path.join(rasterDir, "page-%04d.jpg");
+        await rasterizePdfToJpegs(
+          inputPath,
+          pattern,
+          rasterProfiles[i].dpi,
+          rasterProfiles[i].quality
+        );
+
+        const images = (await fs.readdir(rasterDir))
+          .filter((f) => f.toLowerCase().endsWith(".jpg"))
+          .sort()
+          .map((f) => path.join(rasterDir, f));
+        if (!images.length) {
+          continue;
+        }
+
+        const outPath = path.join(tempRoot, `raster-compressed-${i}.pdf`);
+        await buildPdfFromImages(images, outPath);
+        const stat = await fs.stat(outPath);
+        const currentSize = stat.size;
+
+        if (currentSize < bestSize) {
+          bestSize = currentSize;
+          bestPath = outPath;
+        }
+
+        if (currentSize <= targetBytes) {
+          firstUnderTargetPath = outPath;
+          break;
+        }
       }
     }
 

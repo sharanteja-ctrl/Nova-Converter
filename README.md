@@ -16,6 +16,7 @@ It supports browser-side conversion for text/images and server-side conversion f
   - Images (`.png`, `.jpg`, `.jpeg`, `.webp`)
 - Compress uploaded PDF files to a target size (`KB`/`MB`) using server-side compression
 - Ultra Compression mode for difficult PDF size targets
+- Hard Raster Mode for maximum PDF size reduction when ultra mode is not enough
 - Download generated PDF instantly
 
 ## Run

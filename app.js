@@ -9,6 +9,7 @@ const dropzone = document.getElementById("dropzone");
 const targetSizeInput = document.getElementById("targetSizeInput");
 const targetUnitSelect = document.getElementById("targetUnitSelect");
 const ultraCompressionInput = document.getElementById("ultraCompressionInput");
+const hardRasterInput = document.getElementById("hardRasterInput");
 const openCameraBtn = document.getElementById("openCameraBtn");
 const closeCameraBtn = document.getElementById("closeCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
@@ -444,7 +445,7 @@ async function convertWithServer(file) {
   return response.blob();
 }
 
-async function compressPdfWithServer(file, targetBytes, ultraMode) {
+async function compressPdfWithServer(file, targetBytes, ultraMode, hardRasterMode) {
   if (!window.location.protocol.startsWith("http")) {
     throw new Error(
       "For PDF compression, run this project with the Node server (npm start)."
@@ -459,6 +460,7 @@ async function compressPdfWithServer(file, targetBytes, ultraMode) {
   formData.append("file", file);
   formData.append("targetBytes", String(targetBytes));
   formData.append("ultraMode", ultraMode ? "1" : "0");
+  formData.append("hardRasterMode", hardRasterMode ? "1" : "0");
 
   const response = await fetch("/api/compress-pdf", {
     method: "POST",
@@ -498,6 +500,7 @@ async function handleConvert() {
     const isPdf = isSingle && ext === "pdf";
     const targetBytes = getTargetBytes();
     const ultraMode = Boolean(ultraCompressionInput?.checked);
+    const hardRasterMode = Boolean(hardRasterInput?.checked);
 
     let doc = null;
     let serverBlob = null;
@@ -514,7 +517,12 @@ async function handleConvert() {
       doc = result.doc;
       metTarget = result.metTarget;
     } else if (isPdf) {
-      serverBlob = await compressPdfWithServer(primaryFile, targetBytes, ultraMode);
+      serverBlob = await compressPdfWithServer(
+        primaryFile,
+        targetBytes,
+        ultraMode,
+        hardRasterMode
+      );
     } else if (isOffice) {
       serverBlob = await convertWithServer(primaryFile);
     } else if (isImage) {
@@ -544,7 +552,7 @@ async function handleConvert() {
       );
     } else if (targetBytes && exactSizing.aboveTarget) {
       setStatus(
-        `Done: ${bytesToKb(actualBytes)} KB.${targetText} Could not reach target${ultraMode ? " even in ultra mode" : ""}.`
+        `Done: ${bytesToKb(actualBytes)} KB.${targetText} Could not reach target${hardRasterMode ? " even in hard raster mode" : ultraMode ? " even in ultra mode" : ""}.`
       );
     } else if (isPdf && serverBlob && targetBytes) {
       setStatus(
