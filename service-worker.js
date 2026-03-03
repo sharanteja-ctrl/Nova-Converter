@@ -1,4 +1,4 @@
-const CACHE_NAME = "nova-converter-v1";
+const CACHE_NAME = "nova-converter-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -38,12 +38,32 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const isDocument = event.request.mode === "navigate";
+  const isCoreAsset =
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".html");
+
+  // Network-first for pages and core assets so users receive latest updates.
+  if (isDocument || isCoreAsset) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for other same-origin assets.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) {
         return cached;
       }
-
       return fetch(event.request).then((response) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
