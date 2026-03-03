@@ -45,7 +45,12 @@ async function runCommand(command, args, timeoutMs = 120000) {
         resolve();
         return;
       }
-      reject(new Error(stderr || `Conversion command failed with code ${code}`));
+      reject(
+        new Error(
+          stderr ||
+            `${command} failed with code ${code}. Try a different compression mode or target size.`
+        )
+      );
     });
   });
 }
@@ -286,50 +291,12 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     let bestPath = null;
     let bestSize = Number.POSITIVE_INFINITY;
     let firstUnderTargetPath = null;
+    let lastStepError = null;
 
     for (let i = 0; i < profiles.length; i += 1) {
       const outPath = path.join(tempRoot, `compressed-${i}.pdf`);
-      await compressPdfWithGhostscript(inputPath, outPath, profiles[i]);
-      const stat = await fs.stat(outPath);
-      const currentSize = stat.size;
-
-      if (currentSize < bestSize) {
-        bestSize = currentSize;
-        bestPath = outPath;
-      }
-
-      if (currentSize <= targetBytes) {
-        firstUnderTargetPath = outPath;
-        break;
-      }
-    }
-
-    if (!firstUnderTargetPath && effectiveHardRasterMode) {
-      const rasterProfiles = getFastHardRasterProfiles(ultraMode, compressionRatio);
-
-      for (let i = 0; i < rasterProfiles.length; i += 1) {
-        const rasterDir = path.join(tempRoot, `raster-${i}`);
-        await fs.mkdir(rasterDir, { recursive: true });
-
-        const pattern = path.join(rasterDir, "page-%04d.jpg");
-        await rasterizePdfToJpegs(
-          inputPath,
-          pattern,
-          rasterProfiles[i].dpi,
-          rasterProfiles[i].quality,
-          shouldPreferRasterFirst ? 160000 : 120000
-        );
-
-        const images = (await fs.readdir(rasterDir))
-          .filter((f) => f.toLowerCase().endsWith(".jpg"))
-          .sort()
-          .map((f) => path.join(rasterDir, f));
-        if (!images.length) {
-          continue;
-        }
-
-        const outPath = path.join(tempRoot, `raster-compressed-${i}.pdf`);
-        await buildPdfFromImages(images, outPath, shouldPreferRasterFirst ? 120000 : 90000);
+      try {
+        await compressPdfWithGhostscript(inputPath, outPath, profiles[i]);
         const stat = await fs.stat(outPath);
         const currentSize = stat.size;
 
@@ -342,6 +309,54 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
           firstUnderTargetPath = outPath;
           break;
         }
+      } catch (error) {
+        lastStepError = error;
+      }
+    }
+
+    if (!firstUnderTargetPath && effectiveHardRasterMode) {
+      const rasterProfiles = getFastHardRasterProfiles(ultraMode, compressionRatio);
+
+      for (let i = 0; i < rasterProfiles.length; i += 1) {
+        const rasterDir = path.join(tempRoot, `raster-${i}`);
+        await fs.mkdir(rasterDir, { recursive: true });
+
+        try {
+          const pattern = path.join(rasterDir, "page-%04d.jpg");
+          await rasterizePdfToJpegs(
+            inputPath,
+            pattern,
+            rasterProfiles[i].dpi,
+            rasterProfiles[i].quality,
+            shouldPreferRasterFirst ? 160000 : 120000
+          );
+
+          const images = (await fs.readdir(rasterDir))
+            .filter((f) => f.toLowerCase().endsWith(".jpg"))
+            .sort()
+            .map((f) => path.join(rasterDir, f));
+          if (!images.length) {
+            continue;
+          }
+
+          const outPath = path.join(tempRoot, `raster-compressed-${i}.pdf`);
+          await buildPdfFromImages(images, outPath, shouldPreferRasterFirst ? 120000 : 90000);
+          const stat = await fs.stat(outPath);
+          const currentSize = stat.size;
+
+          if (currentSize < bestSize) {
+            bestSize = currentSize;
+            bestPath = outPath;
+          }
+
+          if (currentSize <= targetBytes) {
+            firstUnderTargetPath = outPath;
+            break;
+          }
+        } catch (error) {
+          lastStepError = error;
+          continue;
+        }
       }
     }
 
@@ -353,28 +368,35 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
       ];
       for (let i = 0; i < squeezeProfiles.length; i += 1) {
         const squeezedPath = path.join(tempRoot, `squeezed-${i}.pdf`);
-        await compressPdfWithGhostscript(
-          bestPath,
-          squeezedPath,
-          squeezeProfiles[i],
-          180000
-        );
-        const stat = await fs.stat(squeezedPath);
-        const currentSize = stat.size;
-        if (currentSize < bestSize) {
-          bestSize = currentSize;
-          bestPath = squeezedPath;
-        }
-        if (currentSize <= targetBytes) {
-          firstUnderTargetPath = squeezedPath;
-          break;
+        try {
+          await compressPdfWithGhostscript(
+            bestPath,
+            squeezedPath,
+            squeezeProfiles[i],
+            180000
+          );
+          const stat = await fs.stat(squeezedPath);
+          const currentSize = stat.size;
+          if (currentSize < bestSize) {
+            bestSize = currentSize;
+            bestPath = squeezedPath;
+          }
+          if (currentSize <= targetBytes) {
+            firstUnderTargetPath = squeezedPath;
+            break;
+          }
+        } catch (error) {
+          lastStepError = error;
         }
       }
     }
 
     const finalPath = firstUnderTargetPath || bestPath;
     if (!finalPath) {
-      throw new Error("Compression failed to generate output.");
+      throw (
+        lastStepError ||
+        new Error("Compression failed to generate output. Try enabling Ultra mode.")
+      );
     }
 
     const outputName = `${path.parse(originalName).name}-compressed.pdf`;
