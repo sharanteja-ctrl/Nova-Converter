@@ -304,21 +304,22 @@ h1 {
 }
 
 .tick-box {
-  width: 22px;
-  height: 22px;
-  border: 2px solid rgba(255, 255, 255, 0.8);
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.65);
   border-radius: 6px;
   position: relative;
-  transition: all 0.2s ease;
+  transition: all 0.22s ease;
   box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
 }
 
 .tick-box::after {
   content: "";
   position: absolute;
-  top: 3px;
-  left: 6px;
-  width: 6px;
+  top: 4px;
+  left: 7px;
+  width: 7px;
   height: 12px;
   border: solid #0f0;
   border-width: 0 3px 3px 0;
@@ -327,9 +328,10 @@ h1 {
 }
 
 .tick-toggle input:checked + .tick-box {
-  background: linear-gradient(135deg, #00ffb3, #00c2ff);
+  background: linear-gradient(135deg, #ff5f6d, #ffc371);
   border-color: transparent;
-  box-shadow: 0 0 10px 2px rgba(0, 255, 179, 0.45);
+  box-shadow: 0 0 12px 3px rgba(255, 95, 109, 0.35);
+  animation: tickPulse 0.5s ease;
 }
 
 .tick-toggle input:checked + .tick-box::after {
@@ -351,7 +353,22 @@ h1 {
 }
 
 .light-mode .tick-toggle input:checked + .tick-box {
-  box-shadow: 0 0 10px 2px rgba(0, 194, 255, 0.35);
+  box-shadow: 0 0 12px 3px rgba(255, 95, 109, 0.35);
+}
+
+@keyframes tickPulse {
+  0% {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 rgba(255, 95, 109, 0.35);
+  }
+  55% {
+    transform: scale(1.05);
+    box-shadow: 0 0 16px 4px rgba(255, 95, 109, 0.3);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 12px 3px rgba(255, 95, 109, 0.35);
+  }
 }
 
 .size-input {
