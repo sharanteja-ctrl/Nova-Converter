@@ -37,6 +37,15 @@ npm start
 
 Then open `http://localhost:8080`.
 
+## Install as App (Mac, iPhone, Android, Windows)
+
+Nova Converter is now configured as a PWA, so users can install it like an app.
+
+- Mac (Safari): open site -> Share -> `Add to Dock`.
+- Mac/Windows (Chrome/Edge): open site -> Install icon in address bar -> `Install`.
+- Android (Chrome): open site -> menu -> `Install app` / `Add to Home screen`.
+- iPhone (Safari): open site -> Share -> `Add to Home Screen`.
+
 ## Public Deployment (Render)
 
 This project includes:
