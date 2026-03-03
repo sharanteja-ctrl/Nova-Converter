@@ -172,15 +172,27 @@ function getFastCompressionProfiles(compressionRatio, ultraMode) {
   return [quickLow, deepLow];
 }
 
-function getFastHardRasterProfiles(ultraMode) {
-  // Fast-first profiles to reduce wait time for hard raster mode.
-  if (ultraMode) {
-    return [
-      { dpi: 50, quality: 26 },
-      { dpi: 40, quality: 22 },
-    ];
+function getFastHardRasterProfiles(ultraMode, compressionRatio) {
+  // Progressively harder raster profiles for extreme size targets.
+  const profiles = ultraMode
+    ? [
+        { dpi: 50, quality: 26 },
+        { dpi: 40, quality: 22 },
+        { dpi: 34, quality: 18 },
+      ]
+    : [
+        { dpi: 50, quality: 26 },
+        { dpi: 40, quality: 22 },
+      ];
+
+  if (compressionRatio <= 0.2) {
+    profiles.push({ dpi: 30, quality: 14 });
   }
-  return [{ dpi: 50, quality: 26 }];
+  if (compressionRatio <= 0.14) {
+    profiles.push({ dpi: 24, quality: 10 });
+  }
+
+  return profiles;
 }
 
 app.post("/api/convert", upload.single("file"), async (req, res) => {
@@ -263,10 +275,11 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
 
     const compressionRatio = targetBytes / Math.max(1, originalSize);
     const aggressiveTarget = compressionRatio <= 0.2;
-    const shouldPreferRasterFirst = hardRasterMode && aggressiveTarget;
+    const effectiveHardRasterMode = hardRasterMode || aggressiveTarget;
+    const shouldPreferRasterFirst = effectiveHardRasterMode && aggressiveTarget;
     const profiles = shouldPreferRasterFirst
       ? []
-      : hardRasterMode
+      : effectiveHardRasterMode
       ? [getFastCompressionProfiles(compressionRatio, ultraMode)[0]]
       : getFastCompressionProfiles(compressionRatio, ultraMode);
 
@@ -291,8 +304,8 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
       }
     }
 
-    if (!firstUnderTargetPath && hardRasterMode) {
-      const rasterProfiles = getFastHardRasterProfiles(ultraMode);
+    if (!firstUnderTargetPath && effectiveHardRasterMode) {
+      const rasterProfiles = getFastHardRasterProfiles(ultraMode, compressionRatio);
 
       for (let i = 0; i < rasterProfiles.length; i += 1) {
         const rasterDir = path.join(tempRoot, `raster-${i}`);
@@ -327,6 +340,33 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
 
         if (currentSize <= targetBytes) {
           firstUnderTargetPath = outPath;
+          break;
+        }
+      }
+    }
+
+    // Final squeeze pass on best output when still above target.
+    if (!firstUnderTargetPath && bestPath) {
+      const squeezeProfiles = [
+        { pdfSettings: "screen", resolution: 36, monoResolution: 60 },
+        { pdfSettings: "screen", resolution: 24, monoResolution: 40 },
+      ];
+      for (let i = 0; i < squeezeProfiles.length; i += 1) {
+        const squeezedPath = path.join(tempRoot, `squeezed-${i}.pdf`);
+        await compressPdfWithGhostscript(
+          bestPath,
+          squeezedPath,
+          squeezeProfiles[i],
+          180000
+        );
+        const stat = await fs.stat(squeezedPath);
+        const currentSize = stat.size;
+        if (currentSize < bestSize) {
+          bestSize = currentSize;
+          bestPath = squeezedPath;
+        }
+        if (currentSize <= targetBytes) {
+          firstUnderTargetPath = squeezedPath;
           break;
         }
       }
