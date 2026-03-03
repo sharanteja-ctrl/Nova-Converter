@@ -60,6 +60,36 @@ async function convertToPdfWithLibreOffice(inputPath, outDir) {
   );
 }
 
+async function compressPdfWithGhostscript(inputPath, outputPath, profile) {
+  const args = [
+    "-sDEVICE=pdfwrite",
+    "-dCompatibilityLevel=1.4",
+    "-dNOPAUSE",
+    "-dQUIET",
+    "-dBATCH",
+    `-dPDFSETTINGS=/${profile.pdfSettings}`,
+    "-dDownsampleColorImages=true",
+    "-dDownsampleGrayImages=true",
+    "-dDownsampleMonoImages=true",
+    `-dColorImageResolution=${profile.resolution}`,
+    `-dGrayImageResolution=${profile.resolution}`,
+    `-dMonoImageResolution=${profile.monoResolution}`,
+    `-sOutputFile=${outputPath}`,
+    inputPath,
+  ];
+
+  try {
+    await runCommand("gs", args);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(
+        "Ghostscript is not installed. Install Ghostscript on the server to enable PDF compression."
+      );
+    }
+    throw error;
+  }
+}
+
 app.post("/api/convert", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded." });
@@ -100,6 +130,83 @@ app.post("/api/convert", upload.single("file"), async (req, res) => {
     return res.send(data);
   } catch (error) {
     return res.status(500).json({ error: error.message || "Conversion failed." });
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => {});
+  }
+});
+
+app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded." });
+  }
+
+  const originalName = sanitizeFilename(req.file.originalname || "input.pdf");
+  const ext = path.extname(originalName).toLowerCase();
+  if (ext !== ".pdf") {
+    return res.status(400).json({ error: "Only PDF files are supported here." });
+  }
+
+  const targetBytes = Number(req.body.targetBytes);
+  if (!Number.isFinite(targetBytes) || targetBytes <= 0) {
+    return res.status(400).json({ error: "Valid targetBytes is required." });
+  }
+
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pdf-compress-"));
+  const inputPath = path.join(tempRoot, originalName);
+
+  try {
+    await fs.writeFile(inputPath, req.file.buffer);
+    const originalSize = req.file.buffer.byteLength;
+    if (originalSize <= targetBytes) {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=\"${path.parse(originalName).name}.pdf\"`
+      );
+      return res.send(req.file.buffer);
+    }
+
+    const profiles = [
+      { pdfSettings: "printer", resolution: 180, monoResolution: 300 },
+      { pdfSettings: "ebook", resolution: 150, monoResolution: 240 },
+      { pdfSettings: "screen", resolution: 120, monoResolution: 180 },
+      { pdfSettings: "screen", resolution: 96, monoResolution: 144 },
+      { pdfSettings: "screen", resolution: 72, monoResolution: 120 },
+    ];
+
+    let bestPath = null;
+    let bestSize = Number.POSITIVE_INFINITY;
+    let firstUnderTargetPath = null;
+
+    for (let i = 0; i < profiles.length; i += 1) {
+      const outPath = path.join(tempRoot, `compressed-${i}.pdf`);
+      await compressPdfWithGhostscript(inputPath, outPath, profiles[i]);
+      const stat = await fs.stat(outPath);
+      const currentSize = stat.size;
+
+      if (currentSize < bestSize) {
+        bestSize = currentSize;
+        bestPath = outPath;
+      }
+
+      if (currentSize <= targetBytes) {
+        firstUnderTargetPath = outPath;
+        break;
+      }
+    }
+
+    const finalPath = firstUnderTargetPath || bestPath;
+    if (!finalPath) {
+      throw new Error("Compression failed to generate output.");
+    }
+
+    const outputName = `${path.parse(originalName).name}-compressed.pdf`;
+    const data = await fs.readFile(finalPath);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=\"${outputName}\"`);
+    return res.send(data);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "PDF compression failed." });
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => {});
   }

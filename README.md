@@ -14,6 +14,7 @@ It supports browser-side conversion for text/images and server-side conversion f
   - Text/code files (`.txt`, `.md`, `.csv`, `.json`, `.js`, `.py`, etc.)
   - Office files (`.doc/.docx/.ppt/.pptx/.xls/.xlsx/.odt/.odp/.ods`)
   - Images (`.png`, `.jpg`, `.jpeg`, `.webp`)
+- Compress uploaded PDF files to a target size (`KB`/`MB`) using server-side compression
 - Download generated PDF instantly
 
 ## Run
@@ -62,6 +63,7 @@ Steps:
 
 `pptx/word/excel` conversion is handled by LibreOffice in the backend API (`/api/convert`).
 Unsupported or niche formats may still fail depending on LibreOffice support.
+PDF compression is handled by Ghostscript in `/api/compress-pdf`.
 
 Target-size matching is best-effort:
 - Image inputs: tries multiple compression levels to get close to the requested KB.

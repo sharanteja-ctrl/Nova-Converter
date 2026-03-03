@@ -353,6 +353,9 @@ function isOfficeLike(fileExt) {
 }
 
 function getInputForm(ext, mimeType) {
+  if (ext === "pdf") {
+    return "PDF";
+  }
   if (mimeType.startsWith("image/")) {
     return "Image";
   }
@@ -394,6 +397,40 @@ async function convertWithServer(file) {
   return response.blob();
 }
 
+async function compressPdfWithServer(file, targetBytes) {
+  if (!window.location.protocol.startsWith("http")) {
+    throw new Error(
+      "For PDF compression, run this project with the Node server (npm start)."
+    );
+  }
+
+  if (!targetBytes) {
+    throw new Error("Enter target size in KB/MB to compress a PDF.");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("targetBytes", String(targetBytes));
+
+  const response = await fetch("/api/compress-pdf", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = "PDF compression failed.";
+    try {
+      const data = await response.json();
+      message = data.error || message;
+    } catch {
+      // Ignore parse errors and use fallback message.
+    }
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
+
 async function handleConvert() {
   if (!selectedFiles.length) {
     setStatus("Please select a file first.");
@@ -410,6 +447,7 @@ async function handleConvert() {
     const allImages = selectedFiles.every((file) => file.type.startsWith("image/"));
     const isImage = isSingle && primaryFile.type.startsWith("image/");
     const isOffice = isSingle && isOfficeLike(ext);
+    const isPdf = isSingle && ext === "pdf";
     const targetBytes = getTargetBytes();
 
     let doc = null;
@@ -426,6 +464,8 @@ async function handleConvert() {
       const result = await convertImagesToPdf(selectedFiles, targetBytes);
       doc = result.doc;
       metTarget = result.metTarget;
+    } else if (isPdf) {
+      serverBlob = await compressPdfWithServer(primaryFile, targetBytes);
     } else if (isOffice) {
       serverBlob = await convertWithServer(primaryFile);
     } else if (isImage) {
@@ -434,8 +474,6 @@ async function handleConvert() {
       metTarget = result.metTarget;
     } else if (textExtensions.has(ext)) {
       doc = await convertTextLikeToPdf(primaryFile, ext);
-    } else if (ext === "pdf") {
-      throw new Error("This file is already a PDF.");
     } else {
       // Try server conversion for any unknown extension so users can use more forms.
       serverBlob = await convertWithServer(primaryFile);
@@ -448,7 +486,11 @@ async function handleConvert() {
       ? ` Target: ~${formatTargetSize(targetBytes)}.`
       : "";
 
-    if (serverBlob && targetBytes) {
+    if (isPdf && serverBlob && targetBytes) {
+      setStatus(
+        `Compressed PDF: ${bytesToKb(actualBytes)} KB.${targetText} Click \"Download PDF\".`
+      );
+    } else if (serverBlob && targetBytes) {
       setStatus(
         `Converted: ${bytesToKb(actualBytes)} KB.${targetText} Server conversion used for this file form.`
       );
