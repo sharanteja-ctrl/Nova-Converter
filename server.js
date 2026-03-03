@@ -241,6 +241,15 @@ function getFastHardRasterProfiles(ultraMode, compressionRatio) {
   return profiles;
 }
 
+function pickAggressiveRasterDpis(compressionRatio) {
+  // Derive a DPI close to the target ratio; bias lower for speed.
+  const base = Math.max(10, Math.floor(120 * Math.sqrt(Math.max(0.02, compressionRatio))));
+  const dpIs = [base, Math.max(10, Math.floor(base * 0.75)), Math.max(10, Math.floor(base * 0.6))];
+  // Ensure uniqueness and descending order.
+  const unique = Array.from(new Set(dpIs)).sort((a, b) => b - a);
+  return unique;
+}
+
 app.post("/api/convert", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded." });
@@ -333,6 +342,36 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     let bestSize = Number.POSITIVE_INFINITY;
     let firstUnderTargetPath = null;
     let lastStepError = null;
+
+    // Ultra-fast path: direct raster based on ratio, before any multi-pass loops.
+    if (shouldPreferRasterFirst) {
+      const fastDpis = pickAggressiveRasterDpis(compressionRatio);
+      for (let i = 0; i < fastDpis.length; i += 1) {
+        const outPath = path.join(tempRoot, `fast-raster-${i}.pdf`);
+        try {
+          await rasterizePdfDirectToPdf(
+            inputPath,
+            outPath,
+            fastDpis[i],
+            Math.max(8, Math.min(32, Math.floor(50 * compressionRatio))),
+            "color",
+            140000
+          );
+          const stat = await fs.stat(outPath);
+          const currentSize = stat.size;
+          if (currentSize < bestSize) {
+            bestSize = currentSize;
+            bestPath = outPath;
+          }
+          if (currentSize <= targetBytes) {
+            firstUnderTargetPath = outPath;
+            break;
+          }
+        } catch (error) {
+          lastStepError = error;
+        }
+      }
+    }
 
     for (let i = 0; i < profiles.length; i += 1) {
       const outPath = path.join(tempRoot, `compressed-${i}.pdf`);
