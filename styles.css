@@ -40,16 +40,16 @@ body {
 }
 
 body.light-mode {
-  --text: #111;
-  --card-bg: rgba(255, 255, 255, 0.9);
-  --card-border: rgba(0, 0, 0, 0.12);
-  --soft-border: rgba(0, 0, 0, 0.12);
-  --field-bg: rgba(255, 255, 255, 0.96);
-  --muted-bg: rgba(248, 248, 248, 0.94);
+  --text: #fff;
+  --card-bg: rgba(0, 0, 0, 0.62);
+  --card-border: rgba(255, 255, 255, 0.32);
+  --soft-border: rgba(255, 255, 255, 0.28);
+  --field-bg: rgba(255, 255, 255, 0.08);
+  --muted-bg: rgba(255, 255, 255, 0.04);
 }
 
 body.light-mode .bg-video {
-  filter: grayscale(30%) contrast(1.05) brightness(1.08);
+  filter: grayscale(100%) contrast(1.05) brightness(0.45);
 }
 
 body::before,
