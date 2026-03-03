@@ -78,6 +78,7 @@ async function compressPdfWithGhostscript(inputPath, outputPath, profile) {
     "-dNOPAUSE",
     "-dQUIET",
     "-dBATCH",
+    "-dNumRenderingThreads=4",
     `-dPDFSETTINGS=/${profile.pdfSettings}`,
     "-dDownsampleColorImages=true",
     "-dDownsampleGrayImages=true",
@@ -107,12 +108,15 @@ async function rasterizePdfToJpegs(inputPath, outputPattern, dpi, quality) {
     "-dNOPAUSE",
     "-dQUIET",
     "-dBATCH",
+    "-dNumRenderingThreads=4",
+    "-sColorConversionStrategy=Gray",
+    "-dProcessColorModel=/DeviceGray",
     `-r${dpi}`,
     `-dJPEGQ=${quality}`,
     `-sOutputFile=${outputPattern}`,
     inputPath,
   ];
-  await runCommand("gs", args, 90000);
+  await runCommand("gs", args, 60000);
 }
 
 async function buildPdfFromImages(imagePaths, outputPath) {
@@ -121,10 +125,11 @@ async function buildPdfFromImages(imagePaths, outputPath) {
     "-dNOPAUSE",
     "-dQUIET",
     "-dBATCH",
+    "-dNumRenderingThreads=4",
     `-sOutputFile=${outputPath}`,
     ...imagePaths,
   ];
-  await runCommand("gs", args, 75000);
+  await runCommand("gs", args, 45000);
 }
 
 function getFastCompressionProfiles(compressionRatio, ultraMode) {
@@ -154,6 +159,17 @@ function getFastCompressionProfiles(compressionRatio, ultraMode) {
     return [quickMid, quickLow];
   }
   return [quickLow, deepLow];
+}
+
+function getFastHardRasterProfiles(ultraMode) {
+  // Fast-first profiles to reduce wait time for hard raster mode.
+  if (ultraMode) {
+    return [
+      { dpi: 50, quality: 26 },
+      { dpi: 40, quality: 22 },
+    ];
+  }
+  return [{ dpi: 50, quality: 26 }];
 }
 
 app.post("/api/convert", upload.single("file"), async (req, res) => {
@@ -235,7 +251,9 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     }
 
     const compressionRatio = targetBytes / Math.max(1, originalSize);
-    const profiles = getFastCompressionProfiles(compressionRatio, ultraMode);
+    const profiles = hardRasterMode
+      ? [getFastCompressionProfiles(compressionRatio, ultraMode)[0]]
+      : getFastCompressionProfiles(compressionRatio, ultraMode);
 
     let bestPath = null;
     let bestSize = Number.POSITIVE_INFINITY;
@@ -259,12 +277,7 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     }
 
     if (!firstUnderTargetPath && hardRasterMode) {
-      const rasterProfiles = ultraMode
-        ? [
-            { dpi: 60, quality: 28 },
-            { dpi: 48, quality: 24 },
-          ]
-        : [{ dpi: 60, quality: 28 }];
+      const rasterProfiles = getFastHardRasterProfiles(ultraMode);
 
       for (let i = 0; i < rasterProfiles.length; i += 1) {
         const rasterDir = path.join(tempRoot, `raster-${i}`);
