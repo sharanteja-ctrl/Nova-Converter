@@ -230,6 +230,36 @@ function savePdf(blob, inputName) {
   return blob.size;
 }
 
+async function makePdfExactTargetSize(blob, targetBytes) {
+  if (!targetBytes) {
+    return { blob, exactMatched: false, aboveTarget: false };
+  }
+
+  if (blob.size > targetBytes) {
+    return { blob, exactMatched: false, aboveTarget: true };
+  }
+
+  if (blob.size === targetBytes) {
+    return { blob, exactMatched: true, aboveTarget: false };
+  }
+
+  const padBytes = targetBytes - blob.size;
+  if (padBytes <= 0) {
+    return { blob, exactMatched: false, aboveTarget: false };
+  }
+
+  const source = new Uint8Array(await blob.arrayBuffer());
+  const padding = new Uint8Array(padBytes);
+  padding.fill(32);
+
+  const merged = new Uint8Array(source.length + padBytes);
+  merged.set(source, 0);
+  merged.set(padding, source.length);
+
+  const exactBlob = new Blob([merged], { type: "application/pdf" });
+  return { blob: exactBlob, exactMatched: true, aboveTarget: false };
+}
+
 function writeTextToPdf(doc, text) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -495,14 +525,25 @@ async function handleConvert() {
       serverBlob = await convertWithServer(primaryFile);
     }
 
-    const blob = serverBlob || doc.output("blob");
+    let blob = serverBlob || doc.output("blob");
+    const exactSizing = await makePdfExactTargetSize(blob, targetBytes);
+    blob = exactSizing.blob;
+
     const downloadName = selectedFiles.length > 1 ? "images-batch.pdf" : primaryFile.name;
     const actualBytes = savePdf(blob, downloadName);
     const targetText = targetBytes
       ? ` Target: ~${formatTargetSize(targetBytes)}.`
       : "";
 
-    if (isPdf && serverBlob && targetBytes) {
+    if (targetBytes && exactSizing.exactMatched) {
+      setStatus(
+        `Done: ${bytesToKb(actualBytes)} KB.${targetText} Exact target size achieved.`
+      );
+    } else if (targetBytes && exactSizing.aboveTarget) {
+      setStatus(
+        `Done: ${bytesToKb(actualBytes)} KB.${targetText} Could not reach target without damaging quality/content.`
+      );
+    } else if (isPdf && serverBlob && targetBytes) {
       setStatus(
         `Compressed PDF: ${bytesToKb(actualBytes)} KB.${targetText} Click \"Download PDF\".`
       );
