@@ -10,6 +10,10 @@ const targetSizeInput = document.getElementById("targetSizeInput");
 const targetUnitSelect = document.getElementById("targetUnitSelect");
 const ultraCompressionInput = document.getElementById("ultraCompressionInput");
 const hardRasterInput = document.getElementById("hardRasterInput");
+const loadingWrap = document.getElementById("loadingWrap");
+const loadingBar = document.getElementById("loadingBar");
+const loadingLabel = document.getElementById("loadingLabel");
+const loadingPercent = document.getElementById("loadingPercent");
 const openCameraBtn = document.getElementById("openCameraBtn");
 const closeCameraBtn = document.getElementById("closeCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
@@ -20,6 +24,8 @@ const card = document.querySelector(".card");
 let selectedFiles = [];
 let activeCameraStream = null;
 let cameraCapturedFiles = [];
+let loadingTimer = null;
+let loadingProgress = 0;
 
 const textExtensions = new Set([
   "txt",
@@ -66,6 +72,50 @@ function getExt(filename) {
 function resetDownloadLink() {
   downloadLink.classList.add("hidden");
   downloadLink.removeAttribute("href");
+}
+
+function renderLoadingProgress() {
+  const value = Math.max(0, Math.min(100, Math.round(loadingProgress)));
+  loadingBar.style.width = `${value}%`;
+  loadingPercent.textContent = `${value}%`;
+}
+
+function startLoading(labelText = "Converting...") {
+  loadingLabel.textContent = labelText;
+  loadingProgress = 6;
+  renderLoadingProgress();
+  loadingWrap.classList.remove("hidden");
+
+  if (loadingTimer) {
+    clearInterval(loadingTimer);
+  }
+  loadingTimer = setInterval(() => {
+    // Fast at start, slower near completion.
+    const remaining = 92 - loadingProgress;
+    if (remaining <= 0) {
+      return;
+    }
+    loadingProgress += Math.max(1.2, remaining * 0.08);
+    renderLoadingProgress();
+  }, 260);
+}
+
+function setLoadingLabel(text) {
+  loadingLabel.textContent = text;
+}
+
+function stopLoading(success) {
+  if (loadingTimer) {
+    clearInterval(loadingTimer);
+    loadingTimer = null;
+  }
+  loadingProgress = success ? 100 : Math.min(loadingProgress, 96);
+  renderLoadingProgress();
+
+  const delay = success ? 420 : 220;
+  setTimeout(() => {
+    loadingWrap.classList.add("hidden");
+  }, delay);
 }
 
 function stopCamera() {
@@ -489,7 +539,9 @@ async function handleConvert() {
 
   convertBtn.disabled = true;
   setStatus("Converting...");
+  startLoading("Preparing conversion...");
 
+  let success = false;
   try {
     const primaryFile = selectedFiles[0];
     const ext = getExt(primaryFile.name);
@@ -503,8 +555,12 @@ async function handleConvert() {
     const hardRasterMode = Boolean(hardRasterInput?.checked);
     if (isPdf && hardRasterMode) {
       setStatus("Converting with Hard Raster Mode... this can take longer for large PDFs.");
+      setLoadingLabel("Hard raster compression in progress...");
     } else if (isPdf && ultraMode) {
       setStatus("Converting with Ultra Compression...");
+      setLoadingLabel("Ultra compression in progress...");
+    } else if (!isSingle && allImages) {
+      setLoadingLabel("Merging multiple images...");
     }
 
     let doc = null;
@@ -580,9 +636,11 @@ async function handleConvert() {
         `Converted: ${bytesToKb(actualBytes)} KB.${targetText} Click \"Download PDF\".`
       );
     }
+    success = true;
   } catch (error) {
     setStatus(`Failed: ${error.message}`);
   } finally {
+    stopLoading(success);
     convertBtn.disabled = false;
   }
 }
