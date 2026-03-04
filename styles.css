@@ -89,6 +89,57 @@ body {
   animation: smokeDriftA 38s ease-in-out infinite alternate-reverse;
 }
 
+.hero-ornaments {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orb {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  filter: blur(30px);
+  opacity: 0.35;
+  mix-blend-mode: screen;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), transparent 60%);
+  animation: orbFloat 18s ease-in-out infinite alternate;
+}
+
+.orb-a {
+  top: 6%;
+  left: -6%;
+  background: radial-gradient(circle at 30% 30%, #f55353, transparent 60%);
+  animation-duration: 22s;
+}
+
+.orb-b {
+  top: 22%;
+  right: -10%;
+  background: radial-gradient(circle at 60% 40%, #00d2ff, transparent 60%);
+  animation-duration: 26s;
+}
+
+.orb-c {
+  bottom: -8%;
+  left: 22%;
+  background: radial-gradient(circle at 60% 50%, #f9b233, transparent 60%);
+  animation-duration: 24s;
+}
+
+@keyframes orbFloat {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate3d(12px, -10px, 0) scale(1.08);
+    opacity: 0.45;
+  }
+}
+
 body.light-mode {
   --text: #fff;
   --card-bg: rgba(0, 0, 0, 0.62);
@@ -474,6 +525,7 @@ h1 {
   padding: 10px;
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
+  min-width: 0;
 }
 
 .size-input input:focus,
@@ -850,6 +902,17 @@ button.convert[disabled]::before {
 }
 
 @media (max-width: 540px) {
+  .size-input {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .size-input input,
+  .size-input select {
+    width: 100%;
+    border-radius: 10px;
+  }
+
   body {
     padding: 12px;
   }
