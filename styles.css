@@ -955,3 +955,51 @@ button.convert[disabled]::before {
     max-height: 130px;
   }
 }
+
+.info-section {
+  margin-top: 26px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--soft-border);
+  background: var(--muted-bg);
+  text-align: left;
+}
+
+.info-section h2 {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.faq-list {
+  list-style: disc;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.faq-list strong {
+  color: var(--text);
+}
+
+.contact-copy {
+  margin: 6px 0 12px;
+  opacity: 0.9;
+}
+
+.contact-btn {
+  display: inline-block;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--soft-border);
+  background: linear-gradient(120deg, #2b2b2b, #000);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contact-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(255, 255, 255, 0.18);
+}
