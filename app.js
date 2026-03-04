@@ -16,6 +16,7 @@ const targetUnitSelect = document.getElementById("targetUnitSelect");
 const maxCompressionInput = document.getElementById("maxCompressionInput");
 const loadingWrap = document.getElementById("loadingWrap");
 const loadingBar = document.getElementById("loadingBar");
+const loadingHead = document.getElementById("loadingHead");
 const loadingLabel = document.getElementById("loadingLabel");
 const loadingPercent = document.getElementById("loadingPercent");
 const successBurst = document.getElementById("successBurst");
@@ -29,7 +30,7 @@ const card = document.querySelector(".card");
 let selectedFiles = [];
 let activeCameraStream = null;
 let cameraCapturedFiles = [];
-let loadingTimer = null;
+let processingTimer = null;
 let loadingProgress = 0;
 let downloadTimer = null;
 let outputUrl = null;
@@ -113,6 +114,9 @@ function startDownloadCountdown(linkEl, finalText) {
 function renderLoadingProgress() {
   const value = Math.max(0, Math.min(100, Math.round(loadingProgress)));
   loadingBar.style.width = `${value}%`;
+  if (loadingHead) {
+    loadingHead.style.left = `${value}%`;
+  }
   loadingPercent.textContent = `${value}%`;
 }
 
@@ -125,21 +129,12 @@ function triggerSuccessAnimation() {
 
 function startLoading(labelText = "Converting...") {
   loadingLabel.textContent = labelText;
-  loadingProgress = 6;
+  loadingProgress = 2;
   renderLoadingProgress();
-
-  if (loadingTimer) {
-    clearInterval(loadingTimer);
+  if (processingTimer) {
+    clearInterval(processingTimer);
+    processingTimer = null;
   }
-  loadingTimer = setInterval(() => {
-    // Fast at start, slower near completion.
-    const remaining = 92 - loadingProgress;
-    if (remaining <= 0) {
-      return;
-    }
-    loadingProgress += Math.max(1.2, remaining * 0.08);
-    renderLoadingProgress();
-  }, 260);
 }
 
 function setLoadingLabel(text) {
@@ -147,9 +142,9 @@ function setLoadingLabel(text) {
 }
 
 function stopLoading(success) {
-  if (loadingTimer) {
-    clearInterval(loadingTimer);
-    loadingTimer = null;
+  if (processingTimer) {
+    clearInterval(processingTimer);
+    processingTimer = null;
   }
   loadingProgress = success ? 100 : Math.min(loadingProgress, 96);
   renderLoadingProgress();
@@ -161,6 +156,107 @@ function stopLoading(success) {
     loadingLabel.textContent = "Ready";
     loadingPercent.textContent = "0%";
   }, delay);
+}
+
+function startProcessingPulse(min = 52, max = 86) {
+  if (processingTimer) {
+    clearInterval(processingTimer);
+  }
+  processingTimer = setInterval(() => {
+    if (loadingProgress < min) {
+      loadingProgress = min;
+    } else {
+      loadingProgress = Math.min(max, loadingProgress + 0.7);
+    }
+    renderLoadingProgress();
+  }, 320);
+}
+
+function stopProcessingPulse() {
+  if (processingTimer) {
+    clearInterval(processingTimer);
+    processingTimer = null;
+  }
+}
+
+function postFormDataWithProgress(
+  url,
+  formData,
+  {
+    uploadLabel = "Uploading file...",
+    processLabel = "Processing on server...",
+    downloadLabel = "Receiving output...",
+    fallbackError = "Request failed.",
+  } = {}
+) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+    xhr.responseType = "blob";
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) {
+        return;
+      }
+      stopProcessingPulse();
+      const ratio = event.total > 0 ? event.loaded / event.total : 0;
+      loadingProgress = Math.max(6, Math.min(48, 6 + ratio * 42));
+      renderLoadingProgress();
+      setLoadingLabel(uploadLabel);
+    };
+
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === XMLHttpRequest.HEADERS_RECEIVED) {
+        loadingProgress = Math.max(52, loadingProgress);
+        renderLoadingProgress();
+        setLoadingLabel(processLabel);
+        startProcessingPulse(52, 86);
+      }
+    };
+
+    xhr.onprogress = (event) => {
+      if (!event.lengthComputable || xhr.readyState < XMLHttpRequest.HEADERS_RECEIVED) {
+        return;
+      }
+      stopProcessingPulse();
+      const ratio = event.total > 0 ? event.loaded / event.total : 0;
+      loadingProgress = Math.max(87, Math.min(99, 87 + ratio * 12));
+      renderLoadingProgress();
+      setLoadingLabel(downloadLabel);
+    };
+
+    xhr.onerror = () => {
+      stopProcessingPulse();
+      reject(new Error("Network error while converting."));
+    };
+
+    xhr.onabort = () => {
+      stopProcessingPulse();
+      reject(new Error("Request aborted."));
+    };
+
+    xhr.onload = async () => {
+      stopProcessingPulse();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        loadingProgress = Math.max(99, loadingProgress);
+        renderLoadingProgress();
+        resolve(xhr.response);
+        return;
+      }
+
+      let message = fallbackError;
+      try {
+        const text = await xhr.response.text();
+        const parsed = JSON.parse(text);
+        message = parsed.error || message;
+      } catch {
+        // keep fallback message
+      }
+      reject(new Error(message));
+    };
+
+    xhr.send(formData);
+  });
 }
 
 function stopCamera() {
@@ -550,23 +646,12 @@ async function convertWithServer(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch("/api/convert", {
-    method: "POST",
-    body: formData,
+  return postFormDataWithProgress("/api/convert", formData, {
+    uploadLabel: "Uploading file...",
+    processLabel: "Converting on server...",
+    downloadLabel: "Receiving converted PDF...",
+    fallbackError: "Server conversion failed.",
   });
-
-  if (!response.ok) {
-    let message = "Server conversion failed.";
-    try {
-      const data = await response.json();
-      message = data.error || message;
-    } catch {
-      // Ignore parse errors and use fallback message.
-    }
-    throw new Error(message);
-  }
-
-  return response.blob();
 }
 
 async function compressPdfWithServer(file, targetBytes, ultraMode, hardRasterMode) {
@@ -586,23 +671,12 @@ async function compressPdfWithServer(file, targetBytes, ultraMode, hardRasterMod
   formData.append("ultraMode", ultraMode ? "1" : "0");
   formData.append("hardRasterMode", hardRasterMode ? "1" : "0");
 
-  const response = await fetch("/api/compress-pdf", {
-    method: "POST",
-    body: formData,
+  return postFormDataWithProgress("/api/compress-pdf", formData, {
+    uploadLabel: "Uploading PDF...",
+    processLabel: "Compressing PDF...",
+    downloadLabel: "Receiving compressed PDF...",
+    fallbackError: "PDF compression failed.",
   });
-
-  if (!response.ok) {
-    let message = "PDF compression failed.";
-    try {
-      const data = await response.json();
-      message = data.error || message;
-    } catch {
-      // Ignore parse errors and use fallback message.
-    }
-    throw new Error(message);
-  }
-
-  return response.blob();
 }
 
 async function convertSingleFileToPdfBlob(file, targetBytes, ultraMode, hardRasterMode) {
@@ -653,6 +727,7 @@ async function convertBatchFilesToZip(files, targetBytes, ultraMode, hardRasterM
   }
 
   setLoadingLabel("Packing converted files...");
+  stopProcessingPulse();
   const zipBlob = await zip.generateAsync(
     {
       type: "blob",

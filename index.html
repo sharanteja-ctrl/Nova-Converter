@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260304-06" />
+    <link rel="stylesheet" href="styles.css?v=20260304-07" />
   </head>
   <body>
     <video class="bg-video" autoplay muted loop playsinline>
@@ -99,7 +99,10 @@
           </div>
           <div class="loading-track">
             <div id="loadingBar" class="loading-bar"></div>
+            <div id="loadingHead" class="loading-head" aria-hidden="true"></div>
+            <div class="loading-end" aria-hidden="true"></div>
           </div>
+          <div class="loading-caption">Quality-first compression timeline</div>
         </div>
 
         <p id="status" class="status" aria-live="polite">Choose a document to start.</p>
@@ -110,7 +113,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="app.js?v=20260304-06"></script>
+    <script src="app.js?v=20260304-07"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
