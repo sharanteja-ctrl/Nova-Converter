@@ -192,12 +192,12 @@ function getFastCompressionProfiles(compressionRatio, ultraMode) {
   const deepLow = { pdfSettings: "screen", resolution: 72, monoResolution: 120 };
 
   if (ultraMode) {
+    // Clarity-safe ultra profiles: avoid very low resolutions that introduce blur.
     return [
+      quickHigh,
+      { pdfSettings: "ebook", resolution: 135, monoResolution: 220 },
       quickMid,
-      quickLow,
-      deepLow,
-      { pdfSettings: "screen", resolution: 60, monoResolution: 100 },
-      { pdfSettings: "screen", resolution: 48, monoResolution: 72 },
+      { pdfSettings: "screen", resolution: 110, monoResolution: 170 },
     ];
   }
 

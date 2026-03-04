@@ -660,10 +660,11 @@ async function handleConvert() {
     const targetBytes = getTargetBytes();
     const maxCompression = Boolean(maxCompressionInput?.checked);
     const ultraMode = maxCompression;
-    const hardRasterMode = maxCompression;
+    // Keep Heavy Compression clarity-safe: do not enable raster mode from UI.
+    const hardRasterMode = false;
     if (isPdf && maxCompression) {
-      setStatus("Max Compression enabled... this can lower quality for a smaller file.");
-      setLoadingLabel("Max compression in progress...");
+      setStatus("Heavy Compression enabled (clarity-safe, no raster blur).");
+      setLoadingLabel("Heavy compression in progress...");
     } else if (!isSingle && allImages) {
       setLoadingLabel("Merging multiple images...");
     }
