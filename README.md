@@ -13,7 +13,6 @@ It supports browser-side conversion for text/images and server-side conversion f
 - Multi-photo selection: combine many images into one PDF
 - Direct camera capture option (take photo and convert)
 - Optional target PDF size input with `KB`/`MB` unit selector
-- AI PDF Chat: upload a PDF and ask questions before downloading (requires `OPENAI_API_KEY`)
 - Convert to PDF for:
   - Text/code files (`.txt`, `.md`, `.csv`, `.json`, `.js`, `.py`, etc.)
   - Office files (`.doc/.docx/.ppt/.pptx/.xls/.xlsx/.odt/.odp/.ods`)
@@ -40,12 +39,6 @@ sudo apt-get install -y ghostscript libreoffice libreoffice-writer libreoffice-c
 ```
 
 Make sure `gs` and `soffice` are available in your terminal PATH.
-
-Set your OpenAI API key (needed for AI PDF Chat):
-
-```bash
-export OPENAI_API_KEY=sk-...
-```
 
 ### 3) Start server
 
