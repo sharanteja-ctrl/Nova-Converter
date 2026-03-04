@@ -26,20 +26,11 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   background:
-    radial-gradient(140% 120% at 12% 18%, rgba(255, 255, 255, 0.07), transparent 36%),
-    radial-gradient(130% 120% at 88% 10%, rgba(255, 255, 255, 0.05), transparent 42%),
-    #000;
+    radial-gradient(120% 110% at 12% 12%, #5e2137 0%, transparent 42%),
+    radial-gradient(130% 120% at 86% 16%, #8f3142 0%, transparent 46%),
+    radial-gradient(140% 130% at 88% 90%, #ce6843 0%, transparent 48%),
+    linear-gradient(145deg, #2e0f24 0%, #6a213a 44%, #9e3d43 72%, #c5643f 100%);
   color: var(--text);
-}
-
-.bg-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -5;
-  background: #000;
-  pointer-events: none;
 }
 
 body.light-mode {
@@ -55,31 +46,69 @@ body::before,
 body::after {
   content: "";
   position: fixed;
-  inset: -10vmax;
   pointer-events: none;
 }
 
 body::before {
-  background: radial-gradient(circle at 50% 50%, transparent 48%, rgba(0, 0, 0, 0.46) 100%);
-  filter: blur(10px);
+  inset: -18vmax;
+  background:
+    radial-gradient(circle at 20% 26%, rgba(255, 204, 165, 0.26), transparent 44%),
+    radial-gradient(circle at 68% 74%, rgba(255, 132, 84, 0.28), transparent 48%),
+    radial-gradient(circle at 86% 22%, rgba(120, 32, 52, 0.28), transparent 52%);
+  filter: blur(26px);
   z-index: -2;
+  animation: toneDrift 22s ease-in-out infinite alternate;
 }
 
 body::after {
-  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09), transparent 66%);
-  opacity: 0.7;
-  animation: hazePulse 12s ease-in-out infinite alternate;
+  inset: -8vmax;
+  background-image:
+    repeating-linear-gradient(
+      15deg,
+      rgba(255, 255, 255, 0.03) 0px,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 3px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      105deg,
+      rgba(255, 255, 255, 0.025) 0px,
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 2px,
+      transparent 5px
+    );
+  mix-blend-mode: soft-light;
+  opacity: 0.38;
   z-index: -1;
+  animation: grainShift 7s steps(10, end) infinite;
 }
 
-@keyframes hazePulse {
+@keyframes toneDrift {
   from {
-    opacity: 0.55;
-    transform: scale(1);
+    transform: translate3d(-1.5%, -1.2%, 0) scale(1);
+    opacity: 0.92;
   }
   to {
-    opacity: 0.82;
-    transform: scale(1.04);
+    transform: translate3d(1.8%, 1.6%, 0) scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes grainShift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(-1.2%, 0.9%, 0);
+  }
+  50% {
+    transform: translate3d(1%, -1.1%, 0);
+  }
+  75% {
+    transform: translate3d(-0.8%, -0.6%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
   }
 }
 
