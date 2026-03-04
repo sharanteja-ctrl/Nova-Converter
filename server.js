@@ -7,6 +7,8 @@ const { spawn } = require("child_process");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+const PROGRESS_TTL_MS = 2 * 60 * 1000;
+const progressStore = new Map();
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -14,6 +16,45 @@ const upload = multer({
 });
 
 app.use(express.static(__dirname));
+
+function setProgress(progressId, progress, phase, status = "processing") {
+  if (!progressId) {
+    return;
+  }
+  progressStore.set(progressId, {
+    progress: Math.max(0, Math.min(100, Math.round(progress))),
+    phase,
+    status,
+    updatedAt: Date.now(),
+  });
+}
+
+function clearProgressLater(progressId, delayMs = PROGRESS_TTL_MS) {
+  if (!progressId) {
+    return;
+  }
+  setTimeout(() => {
+    progressStore.delete(progressId);
+  }, delayMs);
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, state] of progressStore.entries()) {
+    if (now - state.updatedAt > PROGRESS_TTL_MS) {
+      progressStore.delete(id);
+    }
+  }
+}, 30000).unref();
+
+app.get("/api/progress/:id", (req, res) => {
+  const state = progressStore.get(req.params.id);
+  res.setHeader("Cache-Control", "no-store");
+  if (!state) {
+    return res.json({ progress: 0, phase: "Waiting...", status: "unknown" });
+  }
+  return res.json(state);
+});
 
 function sanitizeFilename(name) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -251,18 +292,22 @@ app.post("/api/convert", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded." });
   }
+  const progressId = String(req.get("x-progress-id") || "").trim();
 
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "doc2pdf-"));
   const outDir = path.join(tempRoot, "out");
 
   try {
+    setProgress(progressId, 8, "Received file");
     await fs.mkdir(outDir, { recursive: true });
 
     const originalName = sanitizeFilename(req.file.originalname || "input.bin");
     const inputPath = path.join(tempRoot, originalName);
     await fs.writeFile(inputPath, req.file.buffer);
+    setProgress(progressId, 20, "Starting LibreOffice conversion");
 
     await convertToPdfWithLibreOffice(inputPath, outDir);
+    setProgress(progressId, 78, "Preparing converted PDF");
 
     const inputBase = path.parse(originalName).name;
     const expectedOutput = path.join(outDir, `${inputBase}.pdf`);
@@ -284,8 +329,12 @@ app.post("/api/convert", upload.single("file"), async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename=\"${outputName}\"`);
 
     const data = await fs.readFile(outputPath);
+    setProgress(progressId, 100, "Done", "done");
+    clearProgressLater(progressId);
     return res.send(data);
   } catch (error) {
+    setProgress(progressId, 100, "Conversion failed", "error");
+    clearProgressLater(progressId);
     return res.status(500).json({ error: error.message || "Conversion failed." });
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => {});
@@ -296,6 +345,7 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded." });
   }
+  const progressId = String(req.get("x-progress-id") || "").trim();
 
   const originalName = sanitizeFilename(req.file.originalname || "input.pdf");
   const ext = path.extname(originalName).toLowerCase();
@@ -313,6 +363,7 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
   const inputPath = path.join(tempRoot, originalName);
 
   try {
+    setProgress(progressId, 8, "Reading PDF");
     await fs.writeFile(inputPath, req.file.buffer);
     const originalSize = req.file.buffer.byteLength;
     if (originalSize <= targetBytes) {
@@ -321,6 +372,8 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
         "Content-Disposition",
         `attachment; filename=\"${path.parse(originalName).name}.pdf\"`
       );
+      setProgress(progressId, 100, "Done", "done");
+      clearProgressLater(progressId);
       return res.send(req.file.buffer);
     }
 
@@ -336,6 +389,11 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
 
     for (let i = 0; i < profiles.length; i += 1) {
       const outPath = path.join(tempRoot, `compressed-${i}.pdf`);
+      setProgress(
+        progressId,
+        18 + (i / Math.max(1, profiles.length)) * 60,
+        `Compressing pass ${i + 1}/${profiles.length}`
+      );
       try {
         await compressPdfWithGhostscript(inputPath, outPath, profiles[i]);
         const stat = await fs.stat(outPath);
@@ -492,9 +550,12 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
     }
 
     const outputName = `${path.parse(originalName).name}-compressed.pdf`;
+    setProgress(progressId, 92, "Preparing output");
     const data = await fs.readFile(finalPath);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename=\"${outputName}\"`);
+    setProgress(progressId, 100, "Done", "done");
+    clearProgressLater(progressId);
     return res.send(data);
   } catch (error) {
     const fallbackName = `${path.parse(originalName).name}-original.pdf`;
@@ -505,6 +566,8 @@ app.post("/api/compress-pdf", upload.single("file"), async (req, res) => {
       String(error.message || "compression-failed").replace(/[\r\n]/g, " ").slice(0, 180)
     );
     res.setHeader("Content-Disposition", `attachment; filename=\"${fallbackName}\"`);
+    setProgress(progressId, 100, "Returned original file", "fallback");
+    clearProgressLater(progressId);
     return res.send(req.file.buffer);
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => {});

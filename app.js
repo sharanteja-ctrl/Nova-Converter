@@ -179,6 +179,10 @@ function stopProcessingPulse() {
   }
 }
 
+function createProgressId() {
+  return `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function postFormDataWithProgress(
   url,
   formData,
@@ -191,7 +195,46 @@ function postFormDataWithProgress(
 ) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const progressId = createProgressId();
+    let progressPollTimer = null;
+
+    const stopProgressPolling = () => {
+      if (progressPollTimer) {
+        clearInterval(progressPollTimer);
+        progressPollTimer = null;
+      }
+    };
+
+    const pollServerProgress = async () => {
+      if (xhr.readyState >= XMLHttpRequest.DONE) {
+        stopProgressPolling();
+        return;
+      }
+      try {
+        const response = await fetch(`/api/progress/${encodeURIComponent(progressId)}?t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (typeof data.progress === "number") {
+          const mappedProgress = 35 + (Math.max(0, Math.min(100, data.progress)) / 100) * 55;
+          if (mappedProgress > loadingProgress && xhr.readyState < XMLHttpRequest.LOADING) {
+            loadingProgress = mappedProgress;
+            renderLoadingProgress();
+          }
+        }
+        if (data.phase && xhr.readyState < XMLHttpRequest.LOADING) {
+          setLoadingLabel(data.phase);
+        }
+      } catch {
+        // Silent: polling is best-effort only.
+      }
+    };
+
     xhr.open("POST", url, true);
+    xhr.setRequestHeader("x-progress-id", progressId);
     xhr.responseType = "blob";
 
     xhr.upload.onprogress = (event) => {
@@ -218,6 +261,7 @@ function postFormDataWithProgress(
       if (!event.lengthComputable || xhr.readyState < XMLHttpRequest.HEADERS_RECEIVED) {
         return;
       }
+      stopProgressPolling();
       stopProcessingPulse();
       const ratio = event.total > 0 ? event.loaded / event.total : 0;
       loadingProgress = Math.max(87, Math.min(99, 87 + ratio * 12));
@@ -226,16 +270,19 @@ function postFormDataWithProgress(
     };
 
     xhr.onerror = () => {
+      stopProgressPolling();
       stopProcessingPulse();
       reject(new Error("Network error while converting."));
     };
 
     xhr.onabort = () => {
+      stopProgressPolling();
       stopProcessingPulse();
       reject(new Error("Request aborted."));
     };
 
     xhr.onload = async () => {
+      stopProgressPolling();
       stopProcessingPulse();
       if (xhr.status >= 200 && xhr.status < 300) {
         loadingProgress = Math.max(99, loadingProgress);
@@ -255,6 +302,8 @@ function postFormDataWithProgress(
       reject(new Error(message));
     };
 
+    progressPollTimer = setInterval(pollServerProgress, 420);
+    pollServerProgress();
     xhr.send(formData);
   });
 }
