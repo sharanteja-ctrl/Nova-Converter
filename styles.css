@@ -180,6 +180,35 @@ body::after {
 .topbar {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.logo-badge {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: conic-gradient(from 120deg, #ff5f6d, #ffc371, #ff5f6d);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.4),
+    0 0 18px rgba(255, 95, 109, 0.45);
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-badge::after {
+  content: "N";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 20px;
+  color: #0d0d0d;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.45);
 }
 
 .theme-toggle.moon .sun-icon {
