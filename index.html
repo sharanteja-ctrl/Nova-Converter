@@ -15,12 +15,18 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260304-04" />
+    <link rel="stylesheet" href="styles.css?v=20260304-05" />
   </head>
   <body>
     <video class="bg-video" autoplay muted loop playsinline>
       <source src="assets/bg.mp4" type="video/mp4" />
     </video>
+    <div class="smoke-stage" aria-hidden="true">
+      <span class="smoke smoke-a"></span>
+      <span class="smoke smoke-b"></span>
+      <span class="smoke smoke-c"></span>
+      <span class="smoke smoke-d"></span>
+    </div>
 
     <div class="container">
       <div class="topbar"></div>
@@ -92,7 +98,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="app.js?v=20260304-04"></script>
+    <script src="app.js?v=20260304-05"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
