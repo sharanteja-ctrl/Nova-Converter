@@ -1,4 +1,4 @@
-const CACHE_NAME = "nova-converter-v29";
+const CACHE_NAME = "nova-converter-v30";
 const APP_SHELL = [
   "/",
   "/index.html",
