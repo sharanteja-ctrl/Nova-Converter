@@ -63,7 +63,7 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260305-48" />
+    <link rel="stylesheet" href="styles.css?v=20260305-52" />
   </head>
   <body>
     <div class="rain-scene" aria-hidden="true">
@@ -98,10 +98,7 @@
       <nav class="side-nav">
         <a class="side-link" href="/split.html">
           <span class="side-link-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-              <path d="M8 3h8l5 5v12a1 1 0 0 1-1 1h-4v-2h3V9h-4a1 1 0 0 1-1-1V4H8v5H6V4a1 1 0 0 1 1-1Z"></path>
-              <path d="M3 12h9v2H3zM3 16h6v2H3zM14 15l4 4m0-4-4 4" stroke-linecap="round"></path>
-            </svg>
+            <i data-lucide="scissors" class="lucide-icon"></i>
           </span>
           <span class="side-link-text">Split PDF</span>
           <span class="side-link-arrow" aria-hidden="true">↗</span>
@@ -132,17 +129,135 @@
         <div class="success-burst" id="successBurst" aria-hidden="true"></div>
         <label class="upload-box" id="dropzone" for="fileInput">
           <input id="fileInput" type="file" multiple />
+          <span class="upload-glyph" aria-hidden="true">
+            <i data-lucide="upload" class="lucide-icon"></i>
+          </span>
           <p id="fileInfo">Drop files here or click to upload (you can select many photos)</p>
         </label>
 
         <div class="camera-block">
-          <button id="openCameraBtn" class="download" type="button">Open Camera</button>
+          <button id="openCameraBtn" class="download btn-with-icon" type="button">
+            <i data-lucide="camera" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Open Camera</span>
+          </button>
           <div id="cameraPanel" class="camera-panel hidden">
-            <video id="cameraPreview" autoplay playsinline muted></video>
+            <div class="scan-toolbar">
+              <div class="scan-badges">
+                <span id="scanStageBadge" class="scan-badge">Live Camera</span>
+                <span id="scanCountBadge" class="scan-badge scan-count">Saved: 0</span>
+              </div>
+              <div class="scan-toolbar-actions">
+                <button id="flashToggleBtn" class="scan-mini-btn btn-with-icon" type="button">
+                  <i data-lucide="zap" class="btn-icon mini-icon" aria-hidden="true"></i>
+                  <span id="flashToggleText" class="btn-text">Flash Off</span>
+                </button>
+                <button id="retakeBtn" class="scan-mini-btn btn-with-icon hidden" type="button">
+                  <i data-lucide="rotate-ccw" class="btn-icon mini-icon" aria-hidden="true"></i>
+                  <span id="retakeBtnText" class="btn-text">Retake</span>
+                </button>
+                <button id="closeCameraBtn" class="scan-mini-btn btn-with-icon" type="button">
+                  <i data-lucide="x" class="btn-icon mini-icon" aria-hidden="true"></i>
+                  <span id="closeCameraBtnLabel" class="btn-text">Close</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="scanLiveStage" class="scan-stage scan-live">
+              <div class="scan-live-wrap">
+                <video id="cameraPreview" autoplay playsinline muted></video>
+                <canvas id="cameraOverlay" class="camera-overlay" aria-hidden="true"></canvas>
+              </div>
+              <p class="scan-hint">
+                Step 1: Capture all pages. Step 2: Tap <strong>Next: Edit All</strong>. Step 3: Apply once for all pages.
+              </p>
+            </div>
+
+            <div id="scanEditStage" class="scan-stage scan-edit hidden">
+              <div id="scanEditProgress" class="scan-edit-progress">Editing 1 of 1</div>
+              <div class="scan-source-wrap" id="scanSourceWrap">
+                <canvas id="scanSourceCanvas"></canvas>
+                <canvas id="scanEditOverlay" class="scan-edit-overlay" aria-hidden="true"></canvas>
+                <div id="scanHandles" class="scan-handles" aria-hidden="true"></div>
+              </div>
+              <div class="scan-control-grid">
+                <label class="tick-toggle scan-mode-toggle">
+                  <input id="applyAllToggle" type="checkbox" checked />
+                  <span class="tick-box" aria-hidden="true"></span>
+                  <span class="tick-label">Apply same edits to all photos</span>
+                </label>
+                <p id="scanModeHint" class="scan-mode-hint">
+                  Checked: one edit style for all photos. Unchecked: edit every photo one by one.
+                </p>
+                <div class="scan-filter-row">
+                  <button class="scan-filter-btn active" type="button" data-filter="original">Original</button>
+                  <button class="scan-filter-btn" type="button" data-filter="bw">Black &amp; White</button>
+                  <button class="scan-filter-btn" type="button" data-filter="highcontrast">High Contrast</button>
+                  <button class="scan-filter-btn" type="button" data-filter="grayscale">Grayscale</button>
+                  <button class="scan-filter-btn" type="button" data-filter="color">Color Enhance</button>
+                  <button class="scan-filter-btn" type="button" data-filter="scan">Scan Mode</button>
+                </div>
+                <div class="scan-sliders">
+                  <label for="scanRotateInput">Rotate
+                    <input id="scanRotateInput" type="range" min="-180" max="180" step="1" value="0" />
+                  </label>
+                  <label for="scanBrightnessInput">Brightness
+                    <input id="scanBrightnessInput" type="range" min="60" max="170" step="1" value="100" />
+                  </label>
+                  <label for="scanContrastInput">Contrast
+                    <input id="scanContrastInput" type="range" min="60" max="190" step="1" value="100" />
+                  </label>
+                  <label for="scanSharpnessInput">Sharpness
+                    <input id="scanSharpnessInput" type="range" min="0" max="100" step="1" value="15" />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div id="scanPreviewStage" class="scan-stage scan-preview hidden">
+              <div id="scanPreviewWrap" class="scan-preview-wrap">
+                <canvas id="scanPreviewCanvas"></canvas>
+              </div>
+              <label class="scan-zoom" for="scanZoomInput">Zoom
+                <input id="scanZoomInput" type="range" min="60" max="220" step="5" value="100" />
+                <span id="scanZoomLabel">100%</span>
+              </label>
+            </div>
+
+            <div class="scan-queue-panel">
+              <div class="scan-queue-head">
+                <span>All Captured Pages</span>
+                <span id="scanQueueMeta" class="scan-queue-meta">0 queued</span>
+              </div>
+              <div id="scanQueueList" class="scan-queue-list">
+                <div class="scan-queue-empty">No photos captured yet.</div>
+              </div>
+            </div>
+
+            <div id="scanProcessing" class="scan-processing hidden" aria-live="polite">
+              <span class="scan-spinner" aria-hidden="true"></span>
+              <span id="scanProcessingText">Processing scan...</span>
+            </div>
+
             <div class="camera-actions">
-              <button id="captureBtn" class="convert" type="button">Capture Photo</button>
-              <button id="closeCameraBtn" class="download" type="button">
-                Close Camera
+              <button id="captureBtn" class="convert btn-with-icon" type="button">
+                <i data-lucide="camera" class="btn-icon" aria-hidden="true"></i>
+                <span class="btn-text">Capture Photo</span>
+              </button>
+              <button id="startEditQueueBtn" class="download btn-with-icon" type="button">
+                <i data-lucide="sliders-horizontal" class="btn-icon" aria-hidden="true"></i>
+                <span class="btn-text">Next: Edit All</span>
+              </button>
+              <button id="nextToPreviewBtn" class="download btn-with-icon hidden" type="button">
+                <i data-lucide="eye" class="btn-icon" aria-hidden="true"></i>
+                <span id="nextToPreviewBtnText" class="btn-text">Preview</span>
+              </button>
+              <button id="backToEditBtn" class="download btn-with-icon hidden" type="button">
+                <i data-lucide="arrow-left" class="btn-icon" aria-hidden="true"></i>
+                <span class="btn-text">Back to Edit</span>
+              </button>
+              <button id="saveScanBtn" class="convert btn-with-icon hidden" type="button">
+                <i data-lucide="save" class="btn-icon" aria-hidden="true"></i>
+                <span id="saveScanBtnText" class="btn-text">Finish</span>
               </button>
             </div>
           </div>
@@ -168,18 +283,30 @@
         </div>
 
         <div class="buttons">
-          <button id="convertBtn" class="convert" disabled>Convert to PDF</button>
-          <a id="downloadLink" class="download hidden" download>Download PDF</a>
+          <button id="convertBtn" class="convert btn-with-icon" disabled>
+            <i data-lucide="file-text" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Convert to PDF</span>
+          </button>
+          <a id="downloadLink" class="download btn-with-icon hidden" download>
+            <i data-lucide="download" class="btn-icon" aria-hidden="true"></i>
+            <span id="downloadLinkText" class="btn-text">Download PDF</span>
+          </a>
         </div>
 
         <div id="previewControls" class="preview-controls hidden">
-          <button id="previewBtn" class="download preview-toggle" type="button">Preview PDF</button>
+          <button id="previewBtn" class="download preview-toggle btn-with-icon" type="button">
+            <i data-lucide="eye" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Preview PDF</span>
+          </button>
         </div>
 
         <div id="previewWrap" class="preview-wrap hidden">
           <div class="preview-header">
             <span>PDF Preview</span>
-            <button id="previewCloseBtn" class="preview-close" type="button">Close</button>
+            <button id="previewCloseBtn" class="preview-close btn-with-icon" type="button">
+              <i data-lucide="x" class="btn-icon mini-icon" aria-hidden="true"></i>
+              <span class="btn-text">Close</span>
+            </button>
           </div>
           <iframe id="previewFrame" title="PDF preview"></iframe>
         </div>
@@ -229,9 +356,10 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.511.0/dist/umd/lucide.min.js"></script>
     <script src="rain-bg.js?v=20260305-43"></script>
     <script src="menu.js?v=20260305-45"></script>
-    <script src="app.js?v=20260304-21"></script>
+    <script src="app.js?v=20260305-26"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

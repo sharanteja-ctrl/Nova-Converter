@@ -30,6 +30,10 @@ body {
   color: var(--text);
 }
 
+.lucide-icon {
+  display: block;
+}
+
 .premium-scene {
   --storm: 0.22;
   position: fixed;
@@ -765,6 +769,24 @@ h1 {
   display: none;
 }
 
+.upload-glyph {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.upload-glyph .lucide-icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.2;
+}
+
 .upload-box:hover {
   border-color: var(--text);
   background: rgba(255, 255, 255, 0.12);
@@ -807,6 +829,8 @@ h1 {
   padding: 10px;
   background: var(--muted-bg);
   animation: panelReveal 0.35s ease;
+  display: grid;
+  gap: 12px;
 }
 
 @keyframes panelReveal {
@@ -820,17 +844,345 @@ h1 {
   }
 }
 
-.camera-panel video {
+.scan-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scan-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scan-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scan-count {
+  opacity: 0.85;
+}
+
+.scan-toolbar-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scan-mini-btn {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.scan-mini-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.scan-mini-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.scan-stage {
+  display: grid;
+  gap: 10px;
+}
+
+.scan-live-wrap,
+.scan-source-wrap,
+.scan-preview-wrap {
+  position: relative;
   width: 100%;
-  max-height: 320px;
-  object-fit: cover;
-  border-radius: 8px;
-  background: #111;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.24);
+  background: #080a0f;
+  overflow: hidden;
+}
+
+.scan-live-wrap {
+  min-height: 200px;
+}
+
+.scan-live-wrap video,
+#scanSourceCanvas,
+#scanEditOverlay,
+#scanPreviewCanvas {
+  width: 100%;
+  display: block;
+}
+
+.scan-live-wrap video {
+  max-height: 360px;
+  object-fit: contain;
+  background: #020202;
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.scan-hint {
+  font-size: 0.88rem;
+  opacity: 0.82;
+}
+
+.scan-hint strong {
+  color: #ffffff;
+}
+
+.scan-queue-panel {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.scan-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.scan-queue-meta {
+  font-weight: 600;
+}
+
+.scan-queue-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.scan-queue-list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scan-queue-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.scan-queue-empty {
+  font-size: 12px;
+  opacity: 0.8;
+  padding: 4px 0;
+}
+
+.scan-queue-item {
+  flex: 0 0 auto;
+  width: 84px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.38);
+  overflow: hidden;
+  display: grid;
+  gap: 4px;
+  padding-bottom: 6px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.scan-queue-item img {
+  width: 100%;
+  height: 58px;
+  object-fit: cover;
+  display: block;
+}
+
+.scan-queue-item span {
+  font-size: 11px;
+  text-align: center;
+  opacity: 0.88;
+}
+
+.scan-queue-item.is-editing {
+  border-color: rgba(255, 255, 255, 0.75);
+  transform: translateY(-1px);
+}
+
+.scan-edit-progress {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  width: fit-content;
+  padding: 4px 10px;
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+.scan-source-wrap {
+  max-height: 56vh;
+}
+
+#scanSourceCanvas {
+  background: #0b0d12;
+}
+
+#scanEditOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scan-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scan-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: rgba(0, 0, 0, 0.92);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.28);
+}
+
+.scan-corner:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.scan-control-grid {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.scan-mode-toggle {
+  width: fit-content;
+}
+
+.scan-mode-hint {
+  margin: -2px 0 0 34px;
+  font-size: 12px;
+  opacity: 0.82;
+}
+
+.scan-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scan-filter-btn {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.scan-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.scan-filter-btn.active {
+  border-color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.scan-sliders {
+  display: grid;
+  gap: 8px;
+}
+
+.scan-sliders label {
+  font-size: 0.83rem;
+  display: grid;
+  gap: 5px;
+}
+
+.scan-sliders input[type="range"] {
+  width: 100%;
+}
+
+.scan-preview-wrap {
+  max-height: 56vh;
+  overflow: auto;
+  background: #ffffff;
+}
+
+#scanPreviewCanvas {
+  transform-origin: 0 0;
+}
+
+.scan-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+}
+
+.scan-zoom input[type="range"] {
+  width: min(260px, 58vw);
+}
+
+.scan-processing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 6px 12px;
+  font-size: 12px;
+  width: fit-content;
+}
+
+.scan-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  animation: scanSpin 0.8s linear infinite;
+}
+
+@keyframes scanSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .camera-actions {
-  margin-top: 10px;
+  margin-top: 2px;
   display: flex;
   gap: 10px;
 }
@@ -1146,6 +1498,29 @@ button,
   background: #111;
 }
 
+.btn-with-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  stroke-width: 2.15;
+}
+
+.mini-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-text {
+  line-height: 1.1;
+}
+
 .convert {
   position: relative;
   overflow: hidden;
@@ -1172,6 +1547,65 @@ button,
 .download {
   background: linear-gradient(120deg, #2b2b2b, #000);
   color: #fff;
+}
+
+#openCameraBtn {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(240, 249, 255, 0.55);
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.12) 100%),
+    linear-gradient(140deg, rgba(106, 195, 255, 0.26), rgba(255, 226, 161, 0.16));
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 12px 28px rgba(11, 22, 43, 0.42),
+    0 0 22px rgba(115, 192, 255, 0.18);
+}
+
+#openCameraBtn::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(
+    105deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.45) 48%,
+    transparent 78%
+  );
+  transform: translateX(-130%);
+  animation: cameraGlassSweep 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+#openCameraBtn .btn-icon {
+  width: 20px;
+  height: 20px;
+  padding: 6px;
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.14));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 6px 14px rgba(8, 19, 38, 0.35);
+}
+
+#openCameraBtn:hover {
+  border-color: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 16px 34px rgba(8, 18, 36, 0.5),
+    0 0 30px rgba(122, 199, 255, 0.3);
+}
+
+@keyframes cameraGlassSweep {
+  0% {
+    transform: translateX(-130%);
+  }
+  70%,
+  100% {
+    transform: translateX(130%);
+  }
 }
 
 .download.pending {
@@ -1417,8 +1851,22 @@ button.convert[disabled]::before {
     padding: 8px;
   }
 
-  .camera-panel video {
-    max-height: 220px;
+  .scan-live-wrap video {
+    max-height: 240px;
+  }
+
+  .scan-toolbar {
+    align-items: flex-start;
+  }
+
+  .scan-toolbar-actions {
+    width: 100%;
+  }
+
+  .scan-filter-row {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
   }
 
   .buttons,
@@ -1479,7 +1927,7 @@ button.convert[disabled]::before {
     margin-top: 14px;
   }
 
-  .camera-panel video {
+  .scan-live-wrap video {
     max-height: 130px;
   }
 }
@@ -1882,6 +2330,12 @@ body.side-menu-open {
   height: 18px;
 }
 
+.side-link-icon .lucide-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.05;
+}
+
 .side-link-icon svg path {
   fill: none;
   stroke: currentColor;
@@ -2202,25 +2656,10 @@ body.light-mode .theme-pill.active {
   animation: splitIconPulse 1.8s ease-in-out infinite;
 }
 
-.split-upload-icon span {
-  position: absolute;
-  width: 18px;
-  height: 2px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.split-upload-icon span:nth-child(1) {
-  transform: rotate(0deg);
-}
-
-.split-upload-icon span:nth-child(2) {
-  transform: rotate(90deg);
-}
-
-.split-upload-icon span:nth-child(3) {
-  width: 12px;
-  transform: translateY(10px);
+.split-upload-icon .lucide-icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.2;
 }
 
 @keyframes splitIconPulse {

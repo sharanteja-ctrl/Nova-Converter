@@ -1,4 +1,8 @@
 (() => {
+  if (window.lucide?.createIcons) {
+    window.lucide.createIcons();
+  }
+
   const MAX_FILE_BYTES = 100 * 1024 * 1024;
   const AUTO_DELETE_MS = 10 * 60 * 1000;
 

@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260305-48" />
+    <link rel="stylesheet" href="styles.css?v=20260305-52" />
   </head>
   <body class="split-tool-page">
     <div class="rain-scene" aria-hidden="true">
@@ -47,10 +47,7 @@
       <nav class="side-nav">
         <a class="side-link active" href="/split.html">
           <span class="side-link-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-              <path d="M8 3h8l5 5v12a1 1 0 0 1-1 1h-4v-2h3V9h-4a1 1 0 0 1-1-1V4H8v5H6V4a1 1 0 0 1 1-1Z"></path>
-              <path d="M3 12h9v2H3zM3 16h6v2H3zM14 15l4 4m0-4-4 4" stroke-linecap="round"></path>
-            </svg>
+            <i data-lucide="scissors" class="lucide-icon"></i>
           </span>
           <span class="side-link-text">Split PDF</span>
           <span class="side-link-arrow" aria-hidden="true">↗</span>
@@ -81,9 +78,7 @@
         <label id="splitDropzone" class="upload-box split-upload-box" for="splitFileInput">
           <input id="splitFileInput" type="file" accept=".pdf,application/pdf" />
           <div class="split-upload-icon" aria-hidden="true">
-            <span></span>
-            <span></span>
-            <span></span>
+            <i data-lucide="upload" class="lucide-icon"></i>
           </div>
           <p id="splitFileInfo">Drag & drop PDF here or click to upload</p>
           <p class="tick-hint">One file only. Up to 100MB.</p>
@@ -129,8 +124,14 @@
         </div>
 
         <div class="split-page-tools">
-          <button id="selectAllPagesBtn" class="download split-small-btn" type="button">Select All</button>
-          <button id="clearPagesBtn" class="download split-small-btn" type="button">Clear</button>
+          <button id="selectAllPagesBtn" class="download split-small-btn btn-with-icon" type="button">
+            <i data-lucide="check" class="btn-icon mini-icon" aria-hidden="true"></i>
+            <span class="btn-text">Select All</span>
+          </button>
+          <button id="clearPagesBtn" class="download split-small-btn btn-with-icon" type="button">
+            <i data-lucide="x" class="btn-icon mini-icon" aria-hidden="true"></i>
+            <span class="btn-text">Clear</span>
+          </button>
         </div>
 
         <div id="splitThumbGrid" class="split-thumb-grid"></div>
@@ -147,8 +148,14 @@
         </div>
 
         <div class="buttons split-buttons">
-          <button id="splitBtn" class="convert split-main-btn" type="button" disabled>Split PDF</button>
-          <a id="splitZipDownloadLink" class="download hidden" download>Download All ZIP</a>
+          <button id="splitBtn" class="convert split-main-btn btn-with-icon" type="button" disabled>
+            <i data-lucide="scissors" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Split PDF</span>
+          </button>
+          <a id="splitZipDownloadLink" class="download btn-with-icon hidden" download>
+            <i data-lucide="download" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Download All ZIP</span>
+          </a>
         </div>
 
         <div id="splitResultWrap" class="split-result-wrap hidden">
@@ -163,9 +170,10 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.511.0/dist/umd/lucide.min.js"></script>
     <script src="rain-bg.js?v=20260305-43"></script>
     <script src="menu.js?v=20260305-45"></script>
-    <script src="split.js?v=20260304-38"></script>
+    <script src="split.js?v=20260305-39"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
