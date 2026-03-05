@@ -25,6 +25,7 @@ body {
   padding: 24px;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: #02040a;
   color: var(--text);
 }
@@ -411,6 +412,35 @@ body.perf-lite .rain-canvas {
   opacity: 0.84;
 }
 
+body.scroll-perf .mist-overlay,
+body.scroll-perf .lens-bloom,
+body.scroll-perf .rain-scene::after {
+  animation: none !important;
+}
+
+body.scroll-perf .glass-noise {
+  display: none;
+}
+
+body.scroll-perf .mist-overlay {
+  filter: blur(14px);
+  opacity: 0.42;
+}
+
+body.scroll-perf .lens-bloom {
+  filter: blur(10px);
+  opacity: 0.28;
+}
+
+body.scroll-perf .rain-scene::after {
+  filter: blur(10px);
+  opacity: 0.34;
+}
+
+body.scroll-perf .city-blur {
+  filter: blur(7px) saturate(1.02);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rain-scene::after,
   .mist-overlay,
@@ -439,6 +469,13 @@ body.perf-lite .rain-canvas {
   .glass-noise {
     opacity: 0.22;
     animation-duration: 10s;
+  }
+
+  .card,
+  .side-toggle-btn,
+  .side-menu,
+  .side-backdrop {
+    backdrop-filter: none;
   }
 }
 

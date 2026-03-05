@@ -10,6 +10,12 @@
   }
 
   const rainScene = document.querySelector(".rain-scene");
+  const coarsePointer = window.matchMedia
+    ? window.matchMedia("(pointer: coarse)").matches
+    : false;
+  const touchCapable =
+    coarsePointer ||
+    (typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 0);
   const prefersReducedMotion = window.matchMedia
     ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
     : false;
@@ -32,6 +38,8 @@
   let rafId = 0;
   let qualityScale = lowEndDevice ? 0.5 : 0.84;
   let minFrameMs = lowEndDevice ? 22 : 16;
+  let scrollBusy = false;
+  let scrollIdleTimer = 0;
 
   const pointer = {
     x: 0,
@@ -338,6 +346,7 @@
     const dt = Math.min(0.034, elapsedMs / 1000);
     lastTs = ts;
     frameCount += 1;
+    const interactionsEnabled = !scrollBusy;
 
     if (ts - lastFpsTs > 1400) {
       const fps = (frameCount * 1000) / (ts - lastFpsTs);
@@ -362,7 +371,7 @@
     pointer.x += (pointer.targetX - pointer.x) * 0.13;
     pointer.y += (pointer.targetY - pointer.y) * 0.13;
 
-    if (ts - pointer.lastMoveTs > 1200) {
+    if (!interactionsEnabled || ts - pointer.lastMoveTs > 1200) {
       pointer.active = false;
     }
     pointer.vx *= 0.94;
@@ -374,7 +383,7 @@
     const cinematicDriftY = Math.cos(ts * 0.00011) * 5;
 
     sceneVarTick += 1;
-    if (rainScene && sceneVarTick % (lowEndDevice ? 4 : 2) === 0) {
+    if (rainScene && sceneVarTick % (lowEndDevice ? 6 : 3) === 0) {
       rainScene.style.setProperty("--rx", `${(parallaxX + cinematicDriftX).toFixed(2)}px`);
       rainScene.style.setProperty("--ry", `${(parallaxY + cinematicDriftY).toFixed(2)}px`);
     }
@@ -407,7 +416,7 @@
         drop.y += drop.vy * dt * 60;
 
         let pointerShift = 0;
-        if (pointer.active) {
+        if (pointer.active && interactionsEnabled) {
           const dx = drop.x - pointer.x;
           const dy = drop.y - pointer.y;
           const range = 70 + layer.parallax * 190;
@@ -449,7 +458,7 @@
       bead.vy += bead.gravity * dt * 60;
       bead.vx += currentWind * 0.001 * dt * 60;
 
-      if (pointer.active) {
+      if (pointer.active && interactionsEnabled) {
         const dx = bead.x - pointer.x;
         const dy = bead.y - pointer.y;
         const dist = Math.hypot(dx, dy) || 1;
@@ -505,7 +514,7 @@
       ctx.lineTo(bx, by);
       ctx.stroke();
 
-      if (bead.foreground) {
+      if (bead.foreground && !scrollBusy) {
         drawForegroundTrail(bead, parallaxX, parallaxY);
         drawForegroundBead(bead, bx, by, currentWind);
       } else {
@@ -513,40 +522,42 @@
       }
     }
 
-    for (let i = splashes.length - 1; i >= 0; i -= 1) {
-      const p = splashes[i];
-      p.life += dt;
-      if (p.life >= p.maxLife) {
-        splashes.splice(i, 1);
-        continue;
+    if (!scrollBusy) {
+      for (let i = splashes.length - 1; i >= 0; i -= 1) {
+        const p = splashes[i];
+        p.life += dt;
+        if (p.life >= p.maxLife) {
+          splashes.splice(i, 1);
+          continue;
+        }
+
+        p.vy += 0.06 * dt * 60;
+        p.vx += currentWind * 0.0009 * dt * 60;
+        p.x += p.vx * dt * 60;
+        p.y += p.vy * dt * 60;
+
+        const fade = 1 - p.life / p.maxLife;
+        ctx.fillStyle = `rgba(220, 246, 255, ${p.alpha * fade})`;
+        ctx.beginPath();
+        ctx.arc(p.x + parallaxX * 0.35, p.y + parallaxY * 0.3, p.size * fade, 0, Math.PI * 2);
+        ctx.fill();
       }
 
-      p.vy += 0.06 * dt * 60;
-      p.vx += currentWind * 0.0009 * dt * 60;
-      p.x += p.vx * dt * 60;
-      p.y += p.vy * dt * 60;
+      for (let i = ripples.length - 1; i >= 0; i -= 1) {
+        const r = ripples[i];
+        r.radius += r.speed * dt;
+        r.alpha -= dt * 0.45;
+        if (r.alpha <= 0) {
+          ripples.splice(i, 1);
+          continue;
+        }
 
-      const fade = 1 - p.life / p.maxLife;
-      ctx.fillStyle = `rgba(220, 246, 255, ${p.alpha * fade})`;
-      ctx.beginPath();
-      ctx.arc(p.x + parallaxX * 0.35, p.y + parallaxY * 0.3, p.size * fade, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    for (let i = ripples.length - 1; i >= 0; i -= 1) {
-      const r = ripples[i];
-      r.radius += r.speed * dt;
-      r.alpha -= dt * 0.45;
-      if (r.alpha <= 0) {
-        ripples.splice(i, 1);
-        continue;
+        ctx.strokeStyle = `rgba(200, 240, 255, ${r.alpha})`;
+        ctx.lineWidth = r.width;
+        ctx.beginPath();
+        ctx.arc(r.x + parallaxX * 0.2, r.y + parallaxY * 0.2, r.radius, 0, Math.PI * 2);
+        ctx.stroke();
       }
-
-      ctx.strokeStyle = `rgba(200, 240, 255, ${r.alpha})`;
-      ctx.lineWidth = r.width;
-      ctx.beginPath();
-      ctx.arc(r.x + parallaxX * 0.2, r.y + parallaxY * 0.2, r.radius, 0, Math.PI * 2);
-      ctx.stroke();
     }
 
     if (flash > 0.01) {
@@ -556,6 +567,10 @@
   }
 
   function onPointerMove(clientX, clientY) {
+    if (scrollBusy) {
+      return;
+    }
+
     const now = performance.now();
     const dtMs = Math.max(1, now - pointer.lastMoveTs);
     pointer.vx = ((clientX - pointer.lastX) / dtMs) * 16;
@@ -583,15 +598,17 @@
     { passive: true }
   );
 
-  window.addEventListener(
-    "touchmove",
-    (event) => {
-      if (!event.touches.length) return;
-      const touch = event.touches[0];
-      onPointerMove(touch.clientX, touch.clientY);
-    },
-    { passive: true }
-  );
+  if (!touchCapable) {
+    window.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!event.touches.length) return;
+        const touch = event.touches[0];
+        onPointerMove(touch.clientX, touch.clientY);
+      },
+      { passive: true }
+    );
+  }
 
   window.addEventListener("click", (event) => {
     spawnSplash(event.clientX, event.clientY, lowEndDevice ? 0.95 : 1.9);
@@ -599,6 +616,7 @@
   });
 
   window.addEventListener("touchstart", (event) => {
+    if (scrollBusy) return;
     if (!event.touches.length) return;
     const touch = event.touches[0];
     spawnSplash(touch.clientX, touch.clientY, lowEndDevice ? 0.9 : 1.7);
@@ -612,6 +630,27 @@
   });
 
   window.addEventListener("resize", setSize);
+
+  function markScrollBusy() {
+    scrollBusy = true;
+    pointer.active = false;
+    if (document.body) {
+      document.body.classList.add("scroll-perf");
+    }
+    if (scrollIdleTimer) {
+      clearTimeout(scrollIdleTimer);
+    }
+    scrollIdleTimer = window.setTimeout(() => {
+      scrollBusy = false;
+      if (document.body) {
+        document.body.classList.remove("scroll-perf");
+      }
+    }, 180);
+  }
+
+  window.addEventListener("scroll", markScrollBusy, { passive: true });
+  window.addEventListener("wheel", markScrollBusy, { passive: true });
+  window.addEventListener("touchmove", markScrollBusy, { passive: true });
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -631,6 +670,13 @@
 
   window.addEventListener("beforeunload", () => {
     running = false;
+    if (scrollIdleTimer) {
+      clearTimeout(scrollIdleTimer);
+      scrollIdleTimer = 0;
+    }
+    if (document.body) {
+      document.body.classList.remove("scroll-perf");
+    }
     if (rafId) {
       cancelAnimationFrame(rafId);
     }
