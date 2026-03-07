@@ -4,6 +4,8 @@
 
 
 
+Project documentation (single file): [`Documentation-Nova.md`](./Documentation-Nova.md).
+
 A lightweight website that converts documents to PDF.
 It supports browser-side conversion for text/images and server-side conversion for Office files using LibreOffice.
 
@@ -16,6 +18,7 @@ It supports browser-side conversion for text/images and server-side conversion f
 - Drag and drop file upload
 - Multi-photo selection: combine many images into one PDF
 - Direct camera capture option (take photo and convert)
+- AI-style camera scanning: live edge detection, 4-corner overlay, perspective correction
 - Optional target PDF size input with `KB`/`MB` unit selector
 - Convert to PDF for:
   - Text/code files (`.txt`, `.md`, `.csv`, `.json`, `.js`, `.py`, etc.)

@@ -83,6 +83,9 @@ const scanState = {
   liveDetectCanvas: null,
   liveDetectCtx: null,
   liveCorners: null,
+  liveDetectedCorners: null,
+  jscanifyEngine: null,
+  lowLightWarnedAt: 0,
   retakeInsertIndex: null,
   pendingRawCaptures: [],
   currentRawCapture: null,
@@ -102,6 +105,37 @@ const scanState = {
     sharpness: 15,
   },
 };
+
+const LOW_LIGHT_THRESHOLD = 52;
+const LOW_LIGHT_WARN_COOLDOWN_MS = 4500;
+let opencvReady = false;
+
+function initOpenCvRuntimeHook() {
+  const cvRef = window.cv;
+  if (!cvRef) {
+    return false;
+  }
+  if (cvRef.Mat && cvRef.findContours) {
+    opencvReady = true;
+    return true;
+  }
+  const previousHandler = cvRef.onRuntimeInitialized;
+  cvRef.onRuntimeInitialized = () => {
+    opencvReady = true;
+    if (typeof previousHandler === "function") {
+      previousHandler();
+    }
+  };
+  return true;
+}
+
+const openCvInitTimer = setInterval(() => {
+  if (opencvReady) {
+    clearInterval(openCvInitTimer);
+    return;
+  }
+  initOpenCvRuntimeHook();
+}, 650);
 
 const textExtensions = new Set([
   "txt",
@@ -682,7 +716,161 @@ function drawPolygon(ctx, points, stroke = "rgba(255,255,255,0.95)") {
   ctx.restore();
 }
 
+function orderCornersClockwise(points) {
+  if (!Array.isArray(points) || points.length !== 4) {
+    return null;
+  }
+  const normalized = points.map((point) => ({ x: Number(point.x), y: Number(point.y) }));
+  if (normalized.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))) {
+    return null;
+  }
+  const sums = normalized.map((point) => point.x + point.y);
+  const diffs = normalized.map((point) => point.x - point.y);
+  const tl = normalized[sums.indexOf(Math.min(...sums))];
+  const br = normalized[sums.indexOf(Math.max(...sums))];
+  const tr = normalized[diffs.indexOf(Math.max(...diffs))];
+  const bl = normalized[diffs.indexOf(Math.min(...diffs))];
+  return [tl, tr, br, bl];
+}
+
+function normalizeCornerCandidate(rawCorners) {
+  if (!rawCorners) {
+    return null;
+  }
+  if (Array.isArray(rawCorners) && rawCorners.length === 4) {
+    const direct = rawCorners.map((entry) => {
+      if (Array.isArray(entry) && entry.length >= 2) {
+        return { x: Number(entry[0]), y: Number(entry[1]) };
+      }
+      if (entry && typeof entry === "object") {
+        return { x: Number(entry.x), y: Number(entry.y) };
+      }
+      return { x: NaN, y: NaN };
+    });
+    return orderCornersClockwise(direct);
+  }
+  const objectShape =
+    rawCorners.topLeft &&
+    rawCorners.topRight &&
+    rawCorners.bottomRight &&
+    rawCorners.bottomLeft;
+  if (objectShape) {
+    return orderCornersClockwise([
+      rawCorners.topLeft,
+      rawCorners.topRight,
+      rawCorners.bottomRight,
+      rawCorners.bottomLeft,
+    ]);
+  }
+  return null;
+}
+
+function detectDocumentCornersWithOpenCv(imageData, width, height) {
+  if (!opencvReady || !window.cv || !window.cv.Mat || !window.cv.findContours) {
+    return null;
+  }
+  const cv = window.cv;
+  let src = null;
+  let gray = null;
+  let blur = null;
+  let edges = null;
+  let contours = null;
+  let hierarchy = null;
+  let best = null;
+  let bestArea = 0;
+  try {
+    src = cv.matFromImageData(imageData);
+    gray = new cv.Mat();
+    blur = new cv.Mat();
+    edges = new cv.Mat();
+    contours = new cv.MatVector();
+    hierarchy = new cv.Mat();
+
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+    cv.Canny(blur, edges, 70, 180);
+
+    const kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+    cv.dilate(edges, edges, kernel);
+    cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, kernel);
+    kernel.delete();
+
+    cv.findContours(edges, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+    for (let i = 0; i < contours.size(); i += 1) {
+      const contour = contours.get(i);
+      const peri = cv.arcLength(contour, true);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(contour, approx, 0.02 * peri, true);
+      const area = Math.abs(cv.contourArea(approx));
+      const minArea = width * height * 0.14;
+      const isQuad = approx.rows === 4;
+      const isConvex = isQuad ? cv.isContourConvex(approx) : false;
+
+      if (isQuad && isConvex && area > minArea && area > bestArea) {
+        const points = [];
+        for (let p = 0; p < 4; p += 1) {
+          const ptr = approx.intPtr(p, 0);
+          points.push({ x: ptr[0], y: ptr[1] });
+        }
+        const ordered = orderCornersClockwise(points);
+        if (ordered) {
+          best = ordered;
+          bestArea = area;
+        }
+      }
+      approx.delete();
+      contour.delete();
+    }
+  } catch {
+    best = null;
+  } finally {
+    src?.delete();
+    gray?.delete();
+    blur?.delete();
+    edges?.delete();
+    contours?.delete();
+    hierarchy?.delete();
+  }
+  return best;
+}
+
+function detectDocumentCornersWithJscanify(imageData, width, height) {
+  if (!window.jscanify) {
+    return null;
+  }
+  try {
+    if (!scanState.jscanifyEngine) {
+      scanState.jscanifyEngine = new window.jscanify();
+    }
+    if (!scanState.jscanifyEngine || typeof scanState.jscanifyEngine.findPaperContour !== "function") {
+      return null;
+    }
+    const tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = width;
+    tmpCanvas.height = height;
+    const tmpCtx = tmpCanvas.getContext("2d");
+    if (!tmpCtx) {
+      return null;
+    }
+    tmpCtx.putImageData(imageData, 0, 0);
+    const contour = scanState.jscanifyEngine.findPaperContour(tmpCanvas);
+    return normalizeCornerCandidate(contour);
+  } catch {
+    return null;
+  }
+}
+
 function detectDocumentCornersFromImageData(imageData, width, height) {
+  const cvCorners = detectDocumentCornersWithOpenCv(imageData, width, height);
+  if (cvCorners) {
+    return cvCorners;
+  }
+  const jscanifyCorners = detectDocumentCornersWithJscanify(imageData, width, height);
+  if (jscanifyCorners) {
+    return jscanifyCorners;
+  }
+
   const pixels = imageData.data;
   const gray = new Uint8Array(width * height);
   for (let y = 0; y < height; y += 1) {
@@ -766,6 +954,27 @@ function clearLiveOverlay() {
   }
 }
 
+function estimateFrameBrightness(imageData) {
+  const data = imageData.data;
+  if (!data || data.length < 4) {
+    return 0;
+  }
+  const sampleStep = Math.max(4, Math.floor(data.length / 3000));
+  let total = 0;
+  let count = 0;
+  for (let i = 0; i < data.length; i += sampleStep * 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    total += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    count += 1;
+  }
+  if (!count) {
+    return 0;
+  }
+  return total / count;
+}
+
 function drawLiveDetectionBoundary() {
   if (!cameraPreview || !cameraOverlay || scanState.stage !== "live") {
     return;
@@ -793,17 +1002,29 @@ function drawLiveDetectionBoundary() {
   detectCanvas.height = detectHeight;
   detectCtx.drawImage(cameraPreview, 0, 0, detectWidth, detectHeight);
   const frame = detectCtx.getImageData(0, 0, detectWidth, detectHeight);
-  const detected =
-    detectDocumentCornersFromImageData(frame, detectWidth, detectHeight) ||
-    createDefaultCorners(detectWidth, detectHeight, 0.12);
+  const brightness = estimateFrameBrightness(frame);
+  const now = Date.now();
+  if (brightness < LOW_LIGHT_THRESHOLD && now - scanState.lowLightWarnedAt > LOW_LIGHT_WARN_COOLDOWN_MS) {
+    scanState.lowLightWarnedAt = now;
+    setStatus("Low light detected. Enable flash or increase lighting for better edge detection.");
+  }
+  const detectedRaw = detectDocumentCornersFromImageData(frame, detectWidth, detectHeight);
+  const detected = detectedRaw || createDefaultCorners(detectWidth, detectHeight, 0.12);
   const sx = cameraOverlay.width / detectWidth;
   const sy = cameraOverlay.height / detectHeight;
-  scanState.liveCorners = detected.map((point) => ({
+  const scaledCorners = detected.map((point) => ({
     x: point.x * sx,
     y: point.y * sy,
   }));
+  scanState.liveCorners = scaledCorners;
+  scanState.liveDetectedCorners = detectedRaw
+    ? detectedRaw.map((point) => ({
+        x: point.x * sx,
+        y: point.y * sy,
+      }))
+    : null;
   const overlayCtx = cameraOverlay.getContext("2d");
-  drawPolygon(overlayCtx, scanState.liveCorners, "rgba(255,255,255,0.88)");
+  drawPolygon(overlayCtx, scaledCorners, "rgba(255,255,255,0.88)");
 }
 
 function startLiveDetection() {
@@ -820,6 +1041,7 @@ function stopLiveDetection() {
     scanState.liveDetectTimer = null;
   }
   scanState.liveCorners = null;
+  scanState.liveDetectedCorners = null;
   clearLiveOverlay();
 }
 
@@ -1460,6 +1682,8 @@ async function openCamera() {
     resetScanEditState();
     resetScanControls();
     setScanEditMode("all");
+    scanState.liveDetectedCorners = null;
+    scanState.lowLightWarnedAt = 0;
     updateScanBadges();
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -1510,7 +1734,7 @@ function stopCamera() {
   updateScanBadges();
 }
 
-async function captureFromCamera() {
+async function captureFromCamera(autoTriggered = false) {
   if (!activeCameraStream) {
     throw new Error("Camera is not open.");
   }
@@ -1520,7 +1744,7 @@ async function captureFromCamera() {
     throw new Error("Camera not ready yet. Try again.");
   }
 
-  setScanProcessing(true, "Capturing document...");
+  setScanProcessing(true, autoTriggered ? "Auto-capturing document..." : "Capturing document...");
   const rawCanvas = document.createElement("canvas");
   rawCanvas.width = videoWidth;
   rawCanvas.height = videoHeight;
@@ -1546,7 +1770,9 @@ async function captureFromCamera() {
     scanState.retakeInsertIndex = null;
     setScanProcessing(false);
     updateScanBadges();
-    setStatus(`Retake captured for photo ${insertIndex + 1}. Opening editor...`);
+    setStatus(
+      `${autoTriggered ? "Auto-captured" : "Retake captured"} for photo ${insertIndex + 1}. Opening editor...`
+    );
     await loadCurrentCaptureIntoEditor();
     setStatus(`Retake updated at photo ${insertIndex + 1}. Continue editing.`);
     return;
@@ -1556,7 +1782,7 @@ async function captureFromCamera() {
   setScanProcessing(false);
   updateScanBadges();
   setStatus(
-    `Captured ${scanState.pendingRawCaptures.length} photo(s). Capture more, then tap Next: Edit All.`
+    `${autoTriggered ? "Auto-captured" : "Captured"} ${scanState.pendingRawCaptures.length} photo(s). Capture more, then tap Next: Edit All.`
   );
 }
 
@@ -2322,7 +2548,11 @@ dropzone.addEventListener("drop", (event) => {
 openCameraBtn?.addEventListener("click", async () => {
   try {
     await openCamera();
-    setStatus("Camera scanner is ready. Capture all pages first, then tap Edit Captures.");
+    const cvText = opencvReady ? "OpenCV" : "fallback";
+    const jscanText = window.jscanify ? "jscanify" : "native";
+    setStatus(
+      `Camera scanner is ready (${cvText} + ${jscanText}). Live edge detection and corner overlay are active.`
+    );
   } catch (error) {
     setStatus(`Failed: ${error.message}`);
   }
