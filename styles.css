@@ -4195,13 +4195,29 @@ body:not(.split-tool-page) .camera-actions {
 
 /* Mobile smoothness pass */
 .vanta-lite .vanta-bg {
-  opacity: 0.62 !important;
+  opacity: 1 !important;
+  background:
+    radial-gradient(120% 90% at 20% 10%, rgba(0, 229, 255, 0.22), transparent 55%),
+    radial-gradient(110% 86% at 80% 15%, rgba(108, 99, 255, 0.24), transparent 58%),
+    radial-gradient(100% 90% at 50% 95%, rgba(0, 255, 255, 0.14), transparent 62%),
+    linear-gradient(180deg, #091124 0%, #070d1d 42%, #040913 74%, #03060d 100%);
+  background-size: 120% 120%, 120% 120%, 120% 120%, 100% 100%;
+  animation: mobileBgDrift 14s ease-in-out infinite alternate;
 }
 
 .vanta-lite .vanta-bg::after {
   background:
-    radial-gradient(900px 360px at 50% -40px, rgba(255, 255, 255, 0.09), transparent 65%),
-    linear-gradient(180deg, rgba(9, 12, 18, 0.52), rgba(9, 12, 18, 0.82));
+    radial-gradient(900px 360px at 50% -40px, rgba(255, 255, 255, 0.14), transparent 65%),
+    linear-gradient(180deg, rgba(9, 12, 18, 0.38), rgba(9, 12, 18, 0.74));
+}
+
+@keyframes mobileBgDrift {
+  0% {
+    background-position: 0% 0%, 100% 0%, 50% 100%, 50% 50%;
+  }
+  100% {
+    background-position: 18% 12%, 82% 8%, 50% 88%, 50% 50%;
+  }
 }
 
 @media (hover: none) and (pointer: coarse) {

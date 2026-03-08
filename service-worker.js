@@ -1,4 +1,4 @@
-const CACHE_NAME = "nova-converter-v48";
+const CACHE_NAME = "nova-converter-v49";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -6,7 +6,7 @@ const APP_SHELL = [
   "/split.html",
   "/merge",
   "/merge.html",
-  "/styles.css?v=20260308-15",
+  "/styles.css?v=20260308-16",
   "/app.js?v=20260308-04",
   "/menu.js?v=20260305-45",
   "/split.js?v=20260305-39",
