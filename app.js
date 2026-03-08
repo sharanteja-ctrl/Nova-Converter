@@ -20,7 +20,9 @@ const loadingHead = document.getElementById("loadingHead");
 const loadingLabel = document.getElementById("loadingLabel");
 const loadingPercent = document.getElementById("loadingPercent");
 const successBurst = document.getElementById("successBurst");
+const quickUploadBtn = document.getElementById("quickUploadBtn");
 const openCameraBtn = document.getElementById("openCameraBtn");
+const toolCards = Array.from(document.querySelectorAll(".tool-card[data-tool]"));
 const closeCameraBtn = document.getElementById("closeCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
 const cameraPanel = document.getElementById("cameraPanel");
@@ -61,6 +63,11 @@ const scanZoomLabel = document.getElementById("scanZoomLabel");
 const saveScanBtnText = document.getElementById("saveScanBtnText");
 const retakeBtnText = document.getElementById("retakeBtnText");
 const downloadLinkText = document.getElementById("downloadLinkText");
+const downloadImageBtn = document.getElementById("downloadImageBtn");
+const shareFileBtn = document.getElementById("shareFileBtn");
+const stepUpload = document.getElementById("stepUpload");
+const stepEdit = document.getElementById("stepEdit");
+const stepDownload = document.getElementById("stepDownload");
 const scanQueueMeta = document.getElementById("scanQueueMeta");
 const scanQueueList = document.getElementById("scanQueueList");
 const scanEditProgress = document.getElementById("scanEditProgress");
@@ -211,6 +218,41 @@ function setStatus(message) {
   statusEl.textContent = message;
 }
 
+function setWorkflowStep(step) {
+  const steps = {
+    upload: stepUpload,
+    edit: stepEdit,
+    download: stepDownload,
+  };
+  Object.entries(steps).forEach(([key, node]) => {
+    node?.classList.toggle("is-active", key === step);
+  });
+}
+
+function initializeRippleEffects() {
+  document
+    .querySelectorAll("button, .download, .tool-card, .workflow-step, .upload-box")
+    .forEach((element) => {
+      element.classList.add("ripple-surface");
+      element.addEventListener("click", (event) => {
+        const target = event.currentTarget;
+        if (!(target instanceof HTMLElement)) {
+          return;
+        }
+        const rect = target.getBoundingClientRect();
+        const wave = document.createElement("span");
+        wave.className = "ripple-wave";
+        const size = Math.max(rect.width, rect.height) * 1.25;
+        wave.style.width = `${size}px`;
+        wave.style.height = `${size}px`;
+        wave.style.left = `${event.clientX - rect.left - size / 2}px`;
+        wave.style.top = `${event.clientY - rect.top - size / 2}px`;
+        target.appendChild(wave);
+        setTimeout(() => wave.remove(), 500);
+      });
+    });
+}
+
 function setControlText(control, label, labelNode) {
   if (labelNode) {
     labelNode.textContent = label;
@@ -219,6 +261,27 @@ function setControlText(control, label, labelNode) {
   if (control) {
     control.textContent = label;
   }
+}
+
+function triggerToolFromCard(toolName) {
+  const key = (toolName || "").toLowerCase();
+  if (key === "split") {
+    window.location.href = "/split.html";
+    return;
+  }
+  if (key === "scan") {
+    openCameraBtn?.click();
+    return;
+  }
+  if (key === "merge") {
+    window.location.href = "/merge.html";
+    return;
+  }
+  document.querySelector(".card")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+  setStatus("Ready. Upload your file and press Convert to PDF.");
 }
 
 function getExt(filename) {
@@ -238,6 +301,8 @@ function resetDownloadLink() {
   previewControls.classList.add("hidden");
   previewWrap.classList.add("hidden");
   previewFrame.removeAttribute("src");
+  downloadImageBtn?.classList.add("hidden");
+  shareFileBtn?.classList.add("hidden");
   if (downloadTimer) {
     clearInterval(downloadTimer);
     downloadTimer = null;
@@ -1593,6 +1658,9 @@ function setScanStage(stage) {
   } else {
     stopLiveDetection();
   }
+  if (stage === "edit" || stage === "preview" || stage === "live") {
+    setWorkflowStep("edit");
+  }
   updateScanBadges();
 }
 
@@ -2576,9 +2644,10 @@ function setSelectedFiles(files) {
   }
   if (!files.length) {
     fileInfo.textContent =
-      "Accepted: all common forms (.doc/.docx/.ppt/.pptx/.xls/.xlsx, text, images). You can select many photos.";
+      "Drag & Drop your document here or click to upload";
     convertBtn.disabled = true;
     setStatus("Choose a document to start.");
+    setWorkflowStep("upload");
     return;
   }
 
@@ -2599,6 +2668,7 @@ function setSelectedFiles(files) {
   const formLabel =
     forms.size === 1 ? Array.from(forms)[0] : `Mixed (${Array.from(forms).join("/")})`;
   setStatus(`Ready to convert. Detected form: ${formLabel}.`);
+  setWorkflowStep("edit");
 }
 
 function setSelectedFile(file) {
@@ -2663,11 +2733,18 @@ function saveOutputBlob(blob, downloadName, finalLabel) {
   downloadLink.href = url;
   downloadLink.download = downloadName;
   downloadLink.classList.remove("hidden");
+  shareFileBtn?.classList.remove("hidden");
+  if (scanPreviewCanvas?.width > 0 && scanPreviewCanvas?.height > 0) {
+    downloadImageBtn?.classList.remove("hidden");
+  } else {
+    downloadImageBtn?.classList.add("hidden");
+  }
   if (downloadTimer) {
     clearInterval(downloadTimer);
     downloadTimer = null;
   }
 startDownloadCountdown(downloadLink, finalLabel);
+  setWorkflowStep("download");
 
   const isPdfOutput =
     (blob.type && blob.type.includes("pdf")) || /\.pdf$/i.test(downloadName);
@@ -3111,6 +3188,10 @@ fileInput.addEventListener("change", (event) => {
   setSelectedFiles(files);
 });
 
+quickUploadBtn?.addEventListener("click", () => {
+  fileInput.click();
+});
+
 convertBtn.addEventListener("click", handleConvert);
 
 previewBtn?.addEventListener("click", () => {
@@ -3125,6 +3206,57 @@ previewBtn?.addEventListener("click", () => {
 previewCloseBtn?.addEventListener("click", () => {
   previewWrap.classList.add("hidden");
   previewFrame.removeAttribute("src");
+});
+
+downloadImageBtn?.addEventListener("click", async () => {
+  try {
+    let blob = null;
+    let name = "scan-image.jpg";
+    if (scanPreviewCanvas?.width > 0 && scanPreviewCanvas?.height > 0) {
+      blob = await canvasToBlob(scanPreviewCanvas, "image/jpeg", 0.95);
+    } else if (selectedFiles.length === 1 && selectedFiles[0].type.startsWith("image/")) {
+      blob = selectedFiles[0];
+      name = selectedFiles[0].name || name;
+    }
+    if (!blob) {
+      setStatus("Image download is available after scan preview.");
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    setStatus(`Image download failed: ${error.message}`);
+  }
+});
+
+shareFileBtn?.addEventListener("click", async () => {
+  try {
+    if (!outputUrl) {
+      setStatus("Generate a file first, then use Share.");
+      return;
+    }
+    const response = await fetch(outputUrl);
+    const blob = await response.blob();
+    const filename = downloadLink.download || "document.pdf";
+    const file = new File([blob], filename, {
+      type: blob.type || "application/pdf",
+    });
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      await navigator.share({
+        title: "Nova Converter",
+        text: "Shared from Nova Converter",
+        files: [file],
+      });
+      return;
+    }
+    setStatus("Share is not supported on this device. Use Download instead.");
+  } catch (error) {
+    setStatus(`Share failed: ${error.message}`);
+  }
 });
 
 ["dragenter", "dragover"].forEach((eventName) => {
@@ -3271,6 +3403,22 @@ document.querySelectorAll(".scan-filter-btn").forEach((button) => {
   });
 });
 
+toolCards.forEach((card) => {
+  card.addEventListener("click", (event) => {
+    if (card.tagName.toLowerCase() === "a") {
+      event.preventDefault();
+    }
+    triggerToolFromCard(card.dataset.tool);
+  });
+  card.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    triggerToolFromCard(card.dataset.tool);
+  });
+});
+
 applyAllToggle?.addEventListener("change", () => {
   setScanEditMode(applyAllToggle.checked ? "all" : "each");
   setStatus(
@@ -3281,6 +3429,8 @@ applyAllToggle?.addEventListener("change", () => {
 });
 
 updateAutoCaptureButtonState();
+setWorkflowStep("upload");
+initializeRippleEffects();
 
 window.addEventListener("resize", () => {
   syncVideoOverlaySize();

@@ -63,55 +63,21 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260305-52" />
+    <link rel="stylesheet" href="styles.css?v=20260308-15" />
   </head>
   <body>
-    <div class="rain-scene" aria-hidden="true">
-      <div class="city-blur"></div>
-      <div class="mist-overlay"></div>
-      <canvas id="rainCanvas" class="rain-canvas"></canvas>
-      <div class="lens-bloom"></div>
-      <div class="glass-noise"></div>
-      <div class="film-bars"></div>
-    </div>
-
-    <button id="sideToggleBtn" class="side-toggle-btn" type="button" aria-label="Open menu">
-      <span class="menu-line"></span>
-      <span class="menu-line"></span>
-      <span class="menu-dot"></span>
-    </button>
-
-    <aside id="sideMenu" class="side-menu" aria-label="Main menu">
-      <div class="side-menu-head">
-        <a class="side-logo" href="/index.html" aria-label="Go to Nova Converter home">
-          <span class="side-logo-orb" aria-hidden="true"></span>
-          <span class="side-logo-word">
-            <strong>Nova</strong>
-            <em>Converter</em>
-          </span>
-        </a>
-        <button id="sideCloseBtn" class="side-close-btn" type="button" aria-label="Close menu">
-          <span></span>
-          <span></span>
-        </button>
-      </div>
-      <nav class="side-nav">
-        <a class="side-link" href="/split.html">
-          <span class="side-link-icon" aria-hidden="true">
-            <i data-lucide="scissors" class="lucide-icon"></i>
-          </span>
-          <span class="side-link-text">Split PDF</span>
-          <span class="side-link-arrow" aria-hidden="true">↗</span>
-        </a>
-      </nav>
-      <div class="side-foot">Nova Converter</div>
-    </aside>
-
-    <div id="sideBackdrop" class="side-backdrop"></div>
-
+    <div id="vantaBg" class="vanta-bg" aria-hidden="true"></div>
     <div class="container">
       <div class="topbar">
-        <a class="brand-link" href="/index.html" aria-label="Go to Nova Converter home">
+        <a class="brand-link brand-logo-only" href="/index.html" aria-label="Go to Nova Converter home">
+          <img
+            class="brand-logo-image"
+            src="/assets/nova-logo.png"
+            alt="Nova Converter"
+            loading="eager"
+            decoding="async"
+            onerror="const p=this.closest('a'); if(p){p.classList.remove('brand-logo-only');} this.remove();"
+          />
           <span class="brand-icon" aria-hidden="true">N</span>
           <span class="brand-word">
             <strong>Nova</strong>
@@ -121,25 +87,75 @@
       </div>
 
       <section class="hero">
-        <h1>Nova Converter</h1>
-        <p class="subtitle">Fast • Secure • High Quality Compression • Mobile-ready</p>
+        <p class="hero-kicker">Smart Document Workflow</p>
+        <h1 class="hero-title"><span>Nova Converter</span></h1>
+        <p class="subtitle">Scan, edit, and convert documents instantly with powerful AI tools.</p>
+        <div class="hero-graphics" aria-hidden="true">
+          <div class="hero-graphic-chip">
+            <i data-lucide="file-text" class="lucide-icon"></i>
+            <span>PDF</span>
+          </div>
+          <div class="hero-graphic-chip">
+            <i data-lucide="image" class="lucide-icon"></i>
+            <span>Image</span>
+          </div>
+          <div class="hero-graphic-chip">
+            <i data-lucide="camera" class="lucide-icon"></i>
+            <span>Scan</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="workflow-section">
+        <div class="workflow-step is-active" id="stepUpload">
+          <i data-lucide="upload" class="lucide-icon" aria-hidden="true"></i>
+          <span>Upload</span>
+        </div>
+        <div class="workflow-divider" aria-hidden="true"></div>
+        <div class="workflow-step" id="stepEdit">
+          <i data-lucide="square-pen" class="lucide-icon" aria-hidden="true"></i>
+          <span>Edit</span>
+        </div>
+        <div class="workflow-divider" aria-hidden="true"></div>
+        <div class="workflow-step" id="stepDownload">
+          <i data-lucide="download" class="lucide-icon" aria-hidden="true"></i>
+          <span>Download</span>
+        </div>
       </section>
 
       <div class="card">
         <div class="success-burst" id="successBurst" aria-hidden="true"></div>
+        <div class="card-intro">
+          <h2>Start in 3 seconds</h2>
+          <p>Upload a file or scan a page. Edit if needed, then download.</p>
+        </div>
+        <div class="primary-actions">
+          <button id="quickUploadBtn" class="convert btn-with-icon" type="button" title="Upload File">
+            <i data-lucide="upload" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Upload File</span>
+          </button>
+          <button id="openCameraBtn" class="download btn-with-icon" type="button" title="Scan with Camera">
+            <i data-lucide="camera" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Scan with Camera</span>
+          </button>
+        </div>
+
         <label class="upload-box" id="dropzone" for="fileInput">
           <input id="fileInput" type="file" multiple />
           <span class="upload-glyph" aria-hidden="true">
             <i data-lucide="upload" class="lucide-icon"></i>
           </span>
-          <p id="fileInfo">Drop files here or click to upload (you can select many photos)</p>
+          <p id="fileInfo">Drag &amp; Drop your document here<br />or click to upload</p>
         </label>
+        <div class="supports-row" aria-label="Supported file types">
+          <span class="supports-label">Supports:</span>
+          <span class="support-chip"><i data-lucide="file-text" class="lucide-icon" aria-hidden="true"></i>PDF</span>
+          <span class="support-chip"><i data-lucide="image" class="lucide-icon" aria-hidden="true"></i>JPG</span>
+          <span class="support-chip"><i data-lucide="image-up" class="lucide-icon" aria-hidden="true"></i>PNG</span>
+          <span class="support-chip"><i data-lucide="file-type-2" class="lucide-icon" aria-hidden="true"></i>DOC</span>
+        </div>
 
         <div class="camera-block">
-          <button id="openCameraBtn" class="download btn-with-icon" type="button">
-            <i data-lucide="camera" class="btn-icon" aria-hidden="true"></i>
-            <span class="btn-text">Open Camera</span>
-          </button>
           <div id="cameraPanel" class="camera-panel hidden">
             <div class="scan-toolbar">
               <div class="scan-badges">
@@ -309,10 +325,21 @@
             <i data-lucide="file-text" class="btn-icon" aria-hidden="true"></i>
             <span class="btn-text">Convert to PDF</span>
           </button>
+        </div>
+
+        <div class="download-section">
           <a id="downloadLink" class="download btn-with-icon hidden" download>
             <i data-lucide="download" class="btn-icon" aria-hidden="true"></i>
             <span id="downloadLinkText" class="btn-text">Download PDF</span>
           </a>
+          <button id="downloadImageBtn" class="download btn-with-icon hidden" type="button" title="Download Image">
+            <i data-lucide="image-down" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Download Image</span>
+          </button>
+          <button id="shareFileBtn" class="download btn-with-icon hidden" type="button" title="Share File">
+            <i data-lucide="share-2" class="btn-icon" aria-hidden="true"></i>
+            <span class="btn-text">Share File</span>
+          </button>
         </div>
 
         <div id="previewControls" class="preview-controls hidden">
@@ -349,6 +376,32 @@
         <p id="status" class="status" aria-live="polite">Choose a document to start.</p>
       </div>
 
+      <section class="tools-section">
+        <h2>Tools</h2>
+        <div class="tools-grid">
+          <article class="tool-card" data-tool="compress" role="button" tabindex="0" title="Compress PDF">
+            <img class="tool-image" src="assets/tool-compress.svg" alt="Compress PDF illustration" loading="lazy" />
+            <h3>Compress PDF</h3>
+            <p>Reduce file size.</p>
+          </article>
+          <article class="tool-card" data-tool="merge" role="button" tabindex="0" title="Merge PDF">
+            <img class="tool-image" src="assets/tool-merge.svg" alt="Merge PDF illustration" loading="lazy" />
+            <h3>Merge PDF</h3>
+            <p>Combine pages.</p>
+          </article>
+          <a class="tool-card tool-card-link" data-tool="split" title="Split PDF" href="/split.html">
+            <img class="tool-image" src="assets/tool-split.svg" alt="Split PDF illustration" loading="lazy" />
+            <h3>Split PDF</h3>
+            <p>Split into smaller files.</p>
+          </a>
+          <article class="tool-card" data-tool="convert" role="button" tabindex="0" title="Convert PDF">
+            <img class="tool-image" src="assets/tool-convert.svg" alt="Convert PDF illustration" loading="lazy" />
+            <h3>Convert PDF</h3>
+            <p>Convert docs to PDF.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="info-section" id="faq">
         <h2>Frequently Asked</h2>
         <ul class="faq-list">
@@ -381,9 +434,56 @@
     <script src="https://cdn.jsdelivr.net/npm/jscanify@1.2.0/dist/jscanify.min.js"></script>
     <script async src="https://docs.opencv.org/4.9.0/opencv.js"></script>
     <script src="https://unpkg.com/lucide@0.511.0/dist/umd/lucide.min.js"></script>
-    <script src="rain-bg.js?v=20260305-43"></script>
-    <script src="menu.js?v=20260305-45"></script>
-    <script src="app.js?v=20260305-26"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.halo.min.js"></script>
+    <script>
+      (() => {
+        let vantaEffect = null;
+        const target = document.getElementById("vantaBg");
+
+        const shouldUseLiteMode = () =>
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+          window.matchMedia("(max-width: 820px)").matches;
+
+        const syncVanta = () => {
+          if (!target) return;
+
+          const useLite = shouldUseLiteMode();
+          document.body.classList.toggle("vanta-lite", useLite);
+
+          if (useLite) {
+            if (vantaEffect) {
+              vantaEffect.destroy?.();
+              vantaEffect = null;
+            }
+            return;
+          }
+
+          if (!window.VANTA) return;
+
+          if (vantaEffect) {
+            vantaEffect.resize?.();
+            return;
+          }
+
+          vantaEffect = window.VANTA.HALO({
+            el: "#vantaBg",
+            mouseControls: !window.matchMedia("(hover: none)").matches,
+            touchControls: false,
+            gyroControls: false,
+            minHeight: 200.0,
+            minWidth: 200.0,
+            scale: 1.0,
+            scaleMobile: 1.0,
+            size: 2.0,
+          });
+        };
+
+        window.addEventListener("load", syncVanta, { once: true });
+        window.addEventListener("resize", syncVanta, { passive: true });
+      })();
+    </script>
+    <script src="app.js?v=20260308-04"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

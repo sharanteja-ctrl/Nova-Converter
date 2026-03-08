@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="novaGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="50%" stop-color="#00FFFF"/>
+      <stop offset="100%" stop-color="#6C63FF"/>
+      <animate attributeName="x1" values="0%;100%;0%" dur="6s" repeatCount="indefinite"/>
+      <animate attributeName="x2" values="100%;0%;100%" dur="6s" repeatCount="indefinite"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <g transform="translate(0,0)">
+    <ellipse cx="512" cy="560" rx="308" ry="116" fill="none" stroke="url(#novaGrad)" stroke-width="18" filter="url(#glow)" stroke-linecap="round" stroke-dasharray="1600 280">
+      <animateTransform attributeName="transform" type="rotate" from="0 512 560" to="360 512 560" dur="10s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <circle cx="790" cy="510" r="14" fill="#eaffff" filter="url(#glow)">
+      <animateMotion dur="10s" repeatCount="indefinite" rotate="auto">
+        <mpath href="#orbitPath"/>
+      </animateMotion>
+    </circle>
+
+    <path id="orbitPath" d="M204 560a308 116 0 1 0 616 0a308 116 0 1 0 -616 0" fill="none"/>
+
+    <text x="512" y="560" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="180" font-weight="800" fill="url(#novaGrad)" filter="url(#glow)">Nova</text>
+    <text x="512" y="658" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="88" font-weight="700" letter-spacing="5" fill="#dff6ff" filter="url(#softGlow)">CONVERTER</text>
+
+    <g fill="#dff6ff" filter="url(#softGlow)">
+      <circle cx="332" cy="394" r="3"><animate attributeName="opacity" values="0.3;1;0.3" dur="2.3s" repeatCount="indefinite"/></circle>
+      <circle cx="386" cy="360" r="2"><animate attributeName="opacity" values="0.2;1;0.2" dur="1.9s" repeatCount="indefinite"/></circle>
+      <circle cx="438" cy="390" r="2"><animate attributeName="opacity" values="0.25;1;0.25" dur="2.5s" repeatCount="indefinite"/></circle>
+      <circle cx="580" cy="358" r="3"><animate attributeName="opacity" values="0.25;1;0.25" dur="2.1s" repeatCount="indefinite"/></circle>
+      <circle cx="642" cy="388" r="2"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.7s" repeatCount="indefinite"/></circle>
+      <circle cx="704" cy="422" r="2"><animate attributeName="opacity" values="0.25;1;0.25" dur="2.4s" repeatCount="indefinite"/></circle>
+    </g>
+  </g>
+</svg>
