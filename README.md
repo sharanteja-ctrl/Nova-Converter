@@ -1,7 +1,8 @@
 # 🚀 Nova Converter
 
 <p align="center">
-  <img src="assets/logos/nova-logo.png" alt="Nova Converter Logo" width="220" />
+  <img width="1536" height="1024" alt="ChatGPT Image Mar 8, 2026, 01_25_28 PM" src="https://github.com/user-attachments/assets/f0f4626a-efe5-4c90-85ec-8f92481b55de" />
+
 </p>
 
 <p align="center"><strong>⚡ Fast document conversion, 📉 PDF compression, ✂️ split & merge, and 📷 camera scan workflow in one web app.</strong></p>
