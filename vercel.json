@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/split",
+      "destination": "/split.html"
+    },
+    {
+      "source": "/merge",
+      "destination": "/merge.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://nova-converter.onrender.com/api/:path*"
+    }
+  ]
+}
